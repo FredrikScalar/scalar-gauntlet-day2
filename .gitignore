@@ -1,18 +1,21 @@
 # Python
 __pycache__/
 *.pyc
+.venv/
+.ipynb_checkpoints/
 
-# IDE
+# OS / IDE
+.DS_Store
 .idea/
+.vscode/
 
 # Shelf-life: vendored Plotly (large; code falls back to the Plotly CDN) and generated reports
 starter/_vendor/
 starter/shelf_life_*.html
 
-# Friction: generated reports and vendored Plotly
+# Friction and the overview: generated reports and vendored Plotly
 starter/figures/
 data/*.bak
 out.html
 out.htmlpython
 plotly.min.js
-.vscode/
