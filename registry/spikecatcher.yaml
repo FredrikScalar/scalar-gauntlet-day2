@@ -1,0 +1,41 @@
+# Signal Gauntlet · submission registry entry · SPIKECATCHER
+# Everything in this file except `claimed` was DECLARED by the submitter.
+# Nothing has been verified. Checking these statements is the pipeline's job.
+
+submission: spikecatcher
+name: SPIKECATCHER
+class: fleet-stress optionality
+
+params:
+  q: 0.95
+
+declared_trials: 6
+dev_window: null   # not declared
+
+backtest_window:
+  start: 2025-01-01
+  end: 2026-06-30
+  days: 546
+
+data_dependencies:
+  - planned-unavailability feed (public, day-ahead)
+  - load/wind/solar forecast vintages
+  - order book
+
+position_cap_mw: 10
+blotter: ../blotters/spikecatcher-blotter.csv   # 1,312 trades
+
+claimed:                    # headline numbers as submitted (see the book)
+  total_pnl_eur: 30100
+  sharpe_ann: 2.42
+  sortino_ann: 3.09
+  active_days_frac: 0.14
+  hit_rate_active_days: 0.51
+  max_drawdown_eur: -2038
+
+# ---- filled by the validation pipeline -------------------------------------
+validation:
+  verdict: null             # PASS | SUSPECT | FAIL
+  conditions: []            # mandatory if SUSPECT (kill dates, monitoring, paper-trade, ...)
+  warranty: null            # what live performance may look like before alarms fire
+  evidence: []              # every verdict line points at a number or a figure

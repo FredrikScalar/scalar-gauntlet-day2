@@ -1,0 +1,41 @@
+# Signal Gauntlet · submission registry entry · PINGPONG
+# Everything in this file except `claimed` was DECLARED by the submitter.
+# Nothing has been verified. Checking these statements is the pipeline's job.
+
+submission: pingpong
+name: PINGPONG
+class: passive dislocation capture
+
+params:
+  thresh: 0.65
+  band: 1.2
+  span: 0.5
+
+declared_trials: 15
+dev_window: null   # not declared
+
+backtest_window:
+  start: 2025-10-24
+  end: 2026-06-30
+  days: 250
+
+data_dependencies:
+  - order book
+
+position_cap_mw: 10
+blotter: ../blotters/pingpong-blotter.csv   # 89,064 trades
+
+claimed:                    # headline numbers as submitted (see the book)
+  total_pnl_eur: 113708
+  sharpe_ann: 10.69
+  sortino_ann: 15.27
+  active_days_frac: 1.00
+  hit_rate_active_days: 0.77
+  max_drawdown_eur: -5340
+
+# ---- filled by the validation pipeline -------------------------------------
+validation:
+  verdict: null             # PASS | SUSPECT | FAIL
+  conditions: []            # mandatory if SUSPECT (kill dates, monitoring, paper-trade, ...)
+  warranty: null            # what live performance may look like before alarms fire
+  evidence: []              # every verdict line points at a number or a figure

@@ -1,0 +1,41 @@
+# Signal Gauntlet · submission registry entry · SUNSPOT
+# Everything in this file except `claimed` was DECLARED by the submitter.
+# Nothing has been verified. Checking these statements is the pipeline's job.
+
+submission: sunspot
+name: SUNSPOT
+class: solar-revision drift
+
+params:
+  enter: 2.2
+  decay: 0.45
+
+declared_trials: 10
+dev_window: 2025-01-01 to 2025-12-31   # first 12 months (declared)
+
+backtest_window:
+  start: 2025-01-01
+  end: 2026-06-30
+  days: 546
+
+data_dependencies:
+  - public solar forecast vintages
+  - order book
+
+position_cap_mw: 10
+blotter: ../blotters/sunspot-blotter.csv   # 552 trades
+
+claimed:                    # headline numbers as submitted (see the book)
+  total_pnl_eur: 12968
+  sharpe_ann: 3.86
+  sortino_ann: 26.88
+  active_days_frac: 0.22
+  hit_rate_active_days: 0.81
+  max_drawdown_eur: -79
+
+# ---- filled by the validation pipeline -------------------------------------
+validation:
+  verdict: null             # PASS | SUSPECT | FAIL
+  conditions: []            # mandatory if SUSPECT (kill dates, monitoring, paper-trade, ...)
+  warranty: null            # what live performance may look like before alarms fire
+  evidence: []              # every verdict line points at a number or a figure

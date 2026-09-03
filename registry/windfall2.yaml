@@ -1,0 +1,41 @@
+# Signal Gauntlet · submission registry entry · WINDFALL 2.0
+# Everything in this file except `claimed` was DECLARED by the submitter.
+# Nothing has been verified. Checking these statements is the pipeline's job.
+
+submission: windfall2
+name: WINDFALL 2.0
+class: wind-revision drift · upgraded data
+
+params:
+  enter: 4.0
+  decay: 0.5
+
+declared_trials: 8
+dev_window: null   # not declared
+
+backtest_window:
+  start: 2025-05-27
+  end: 2026-06-30
+  days: 400
+
+data_dependencies:
+  - WeatherDesk Pro vintage feed (provider trial)
+  - order book
+
+position_cap_mw: 10
+blotter: ../blotters/windfall2-blotter.csv   # 2,332 trades
+
+claimed:                    # headline numbers as submitted (see the book)
+  total_pnl_eur: 102137
+  sharpe_ann: 6.87
+  sortino_ann: 21.67
+  active_days_frac: 0.58
+  hit_rate_active_days: 0.98
+  max_drawdown_eur: -457
+
+# ---- filled by the validation pipeline -------------------------------------
+validation:
+  verdict: null             # PASS | SUSPECT | FAIL
+  conditions: []            # mandatory if SUSPECT (kill dates, monitoring, paper-trade, ...)
+  warranty: null            # what live performance may look like before alarms fire
+  evidence: []              # every verdict line points at a number or a figure

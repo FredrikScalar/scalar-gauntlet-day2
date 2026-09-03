@@ -1,0 +1,41 @@
+# Signal Gauntlet · submission registry entry · BOUNCEBACK
+# Everything in this file except `claimed` was DECLARED by the submitter.
+# Nothing has been verified. Checking these statements is the pipeline's job.
+
+submission: bounceback
+name: BOUNCEBACK
+class: asymmetric spike reversion
+
+params:
+  x: 5.5
+  y: 4
+  side: down
+
+declared_trials: 8
+dev_window: null   # not declared; submitter cites six months of live-market observation before the backtest
+
+backtest_window:
+  start: 2026-01-02
+  end: 2026-06-30
+  days: 180
+
+data_dependencies:
+  - order book
+
+position_cap_mw: 10
+blotter: ../blotters/bounceback-blotter.csv   # 3,330 trades
+
+claimed:                    # headline numbers as submitted (see the book)
+  total_pnl_eur: 28022
+  sharpe_ann: 4.81
+  sortino_ann: 8.54
+  active_days_frac: 0.93
+  hit_rate_active_days: 0.50
+  max_drawdown_eur: -2505
+
+# ---- filled by the validation pipeline -------------------------------------
+validation:
+  verdict: null             # PASS | SUSPECT | FAIL
+  conditions: []            # mandatory if SUSPECT (kill dates, monitoring, paper-trade, ...)
+  warranty: null            # what live performance may look like before alarms fire
+  evidence: []              # every verdict line points at a number or a figure

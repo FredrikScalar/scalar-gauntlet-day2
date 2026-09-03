@@ -1,0 +1,41 @@
+# Signal Gauntlet · submission registry entry · WINDFALL
+# Everything in this file except `claimed` was DECLARED by the submitter.
+# Nothing has been verified. Checking these statements is the pipeline's job.
+
+submission: windfall
+name: WINDFALL
+class: wind-revision drift
+
+params:
+  enter: 2.2
+  decay: 0.5
+
+declared_trials: 12
+dev_window: 2025-01-01 to 2025-12-31   # first 12 months (declared)
+
+backtest_window:
+  start: 2025-01-01
+  end: 2026-06-30
+  days: 546
+
+data_dependencies:
+  - public wind forecast vintages
+  - order book
+
+position_cap_mw: 10
+blotter: ../blotters/windfall-blotter.csv   # 2,406 trades
+
+claimed:                    # headline numbers as submitted (see the book)
+  total_pnl_eur: 34951
+  sharpe_ann: 5.98
+  sortino_ann: 14.17
+  active_days_frac: 0.46
+  hit_rate_active_days: 0.80
+  max_drawdown_eur: -445
+
+# ---- filled by the validation pipeline -------------------------------------
+validation:
+  verdict: null             # PASS | SUSPECT | FAIL
+  conditions: []            # mandatory if SUSPECT (kill dates, monitoring, paper-trade, ...)
+  warranty: null            # what live performance may look like before alarms fire
+  evidence: []              # every verdict line points at a number or a figure
