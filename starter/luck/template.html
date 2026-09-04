@@ -1,0 +1,1602 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+:root{
+  color-scheme: light;
+  --ground:#f4f6f8; --panel:#ffffff; --panel-2:#f8fafb; --sunk:#eef1f4;
+  --ink:#0f1418; --ink-2:#48525d; --ink-3:#78838f; --rule:#dfe4e9; --rule-2:#eef1f4;
+  --accent:#2a78d6; --accent-soft:#e8f0fb;
+  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b;
+  --good-bg:#e9f6e9; --warn-bg:#fdf3dc; --crit-bg:#fbeaea;
+  --good-ink:#0a7a0a; --warn-ink:#8a6000; --crit-ink:#a92c2c;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7;
+  --shadow:0 1px 2px rgba(15,20,24,.05), 0 8px 24px -16px rgba(15,20,24,.18);
+  --f-disp:"IBM Plex Sans Condensed", "Helvetica Neue", Arial, sans-serif;
+  --f-body:"IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --ground:#101418; --panel:#171c21; --panel-2:#1c2228; --sunk:#131820;
+    --ink:#eef2f5; --ink-2:#a6b1bc; --ink-3:#79848f; --rule:#283037; --rule-2:#1f262c;
+    --accent:#3987e5; --accent-soft:#16273c;
+    --good:#2fb62f; --warn:#fab219; --crit:#e05c5c;
+    --good-bg:#12250f; --warn-bg:#2b2109; --crit-bg:#2c1414;
+    --good-ink:#5fd05f; --warn-ink:#f0bf4a; --crit-ink:#f08b8b;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --s5:#d55181; --s6:#008300; --s7:#9085e9;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --ground:#101418; --panel:#171c21; --panel-2:#1c2228; --sunk:#131820;
+  --ink:#eef2f5; --ink-2:#a6b1bc; --ink-3:#79848f; --rule:#283037; --rule-2:#1f262c;
+  --accent:#3987e5; --accent-soft:#16273c;
+  --good:#2fb62f; --warn:#fab219; --crit:#e05c5c;
+  --good-bg:#12250f; --warn-bg:#2b2109; --crit-bg:#2c1414;
+  --good-ink:#5fd05f; --warn-ink:#f0bf4a; --crit-ink:#f08b8b;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+  --s5:#d55181; --s6:#008300; --s7:#9085e9;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font:400 15px/1.6 var(--f-body); -webkit-font-smoothing:antialiased;}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px 96px}
+h1,h2,h3,h4{font-family:var(--f-disp);font-weight:700;margin:0;line-height:1.15;text-wrap:balance;letter-spacing:-.01em}
+p{margin:0}
+a{color:var(--accent)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* ---------- masthead ---------- */
+.mast{padding:44px 0 26px;border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.mast h1{font-size:clamp(34px,5vw,52px);margin:10px 0 12px}
+.mast .lede{max-width:72ch;color:var(--ink-2);font-size:16.5px}
+.mast .meta{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:20px;font-family:var(--f-mono);font-size:11.5px;color:var(--ink-3)}
+
+/* ---------- subject verdict strip (single-strategy report) ---------- */
+.vstrip{margin-top:24px;border:1px solid var(--rule);border-radius:12px;background:var(--panel);
+  box-shadow:var(--shadow);overflow:hidden}
+.vstrip-head{display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--rule-2);
+  background:var(--panel-2)}
+.vstrip-lbl{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.vstrip-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.vstrip-cell{padding:14px 18px;border-right:1px solid var(--rule-2);display:flex;flex-direction:column;
+  align-items:flex-start;gap:7px}
+.vstrip-cell:last-child{border-right:0}
+.vstrip-t{font-family:var(--f-mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.vstrip-why{font-size:12.5px;color:var(--ink-2);line-height:1.45;margin:0}
+@media (max-width:700px){.vstrip-cell{border-right:0;border-bottom:1px solid var(--rule-2)}}
+
+/* ---------- control bar ---------- */
+.controls{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--ground) 88%, transparent);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--rule);margin-bottom:34px}
+.controls-in{max-width:1200px;margin:0 auto;padding:11px 24px;display:flex;flex-wrap:wrap;gap:10px 26px;align-items:center}
+.ctl{display:flex;align-items:center;gap:9px}
+.ctl > span{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.seg{display:flex;border:1px solid var(--rule);border-radius:7px;overflow:hidden;background:var(--panel)}
+.seg button{appearance:none;border:0;background:transparent;color:var(--ink-2);cursor:pointer;
+  font:500 12.5px/1 var(--f-body);padding:7px 11px;border-right:1px solid var(--rule-2)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{appearance:none;cursor:pointer;border:1px solid var(--rule);background:var(--panel);color:var(--ink-2);
+  border-radius:999px;padding:5px 11px 5px 8px;font:500 12px/1 var(--f-body);display:inline-flex;align-items:center;gap:6px}
+.pill .swatch{width:9px;height:9px;border-radius:2px;flex:none}
+.pill[aria-pressed="true"]{border-color:var(--ink-2);background:var(--panel-2);color:var(--ink);font-weight:600}
+.pill:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- sections ---------- */
+section{margin-bottom:52px;scroll-margin-top:74px}
+.sec-head{display:flex;gap:14px;align-items:baseline;margin-bottom:6px}
+.sec-num{font-family:var(--f-mono);font-size:12px;font-weight:600;color:var(--accent);padding-top:4px}
+.sec-head h2{font-size:26px}
+.sec-sub{color:var(--ink-2);max-width:74ch;margin:0 0 20px 40px;font-size:15px}
+@media (max-width:640px){.sec-sub{margin-left:0}}
+
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:12px;box-shadow:var(--shadow)}
+.pad{padding:20px 22px}
+
+/* ---------- definition callout ---------- */
+.defn{background:var(--panel-2);border:1px solid var(--rule);border-left:3px solid var(--accent);
+  border-radius:4px 10px 10px 4px;padding:16px 20px;margin-bottom:20px}
+.defn h4{font-size:14px;font-family:var(--f-body);font-weight:600;letter-spacing:0;margin-bottom:5px}
+.defn h4 + p{color:var(--ink-2);font-size:14px}
+.defn dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 16px;align-items:baseline}
+.defn dt{font-family:var(--f-mono);font-size:11.5px;font-weight:600;color:var(--ink);white-space:nowrap;
+  text-transform:uppercase;letter-spacing:.06em}
+.defn dd{margin:0;color:var(--ink-2);font-size:14px}
+.defn dd b{color:var(--ink);font-weight:600}
+@media (max-width:680px){.defn dl{grid-template-columns:1fr;gap:2px 0}.defn dd{margin-bottom:10px}}
+
+/* ---------- verdict chips ---------- */
+.chip{display:inline-flex;align-items:center;gap:5px;border-radius:5px;padding:3px 8px 3px 6px;
+  font:600 11px/1.3 var(--f-body);letter-spacing:.02em;white-space:nowrap;border:1px solid transparent}
+.chip svg{flex:none}
+.chip.keep{background:var(--good-bg);color:var(--good-ink);border-color:color-mix(in srgb,var(--good) 30%,transparent)}
+.chip.suspect{background:var(--warn-bg);color:var(--warn-ink);border-color:color-mix(in srgb,var(--warn) 40%,transparent)}
+.chip.fail{background:var(--crit-bg);color:var(--crit-ink);border-color:color-mix(in srgb,var(--crit) 34%,transparent)}
+
+/* ---------- matrix ---------- */
+.mx-scroll{overflow-x:auto}
+table.mx{border-collapse:separate;border-spacing:0;width:100%;min-width:860px}
+table.mx th,table.mx td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--rule-2);vertical-align:middle}
+table.mx thead th{font:600 11px/1.3 var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);
+  border-bottom:1px solid var(--rule);white-space:nowrap;vertical-align:bottom}
+table.mx tbody tr:last-child td{border-bottom:0}
+table.mx tbody tr.dim{opacity:.34}
+table.mx tbody tr.hi td{background:var(--accent-soft)}
+.sname{display:flex;align-items:center;gap:9px;font-weight:600;white-space:nowrap}
+.sname .bar{width:3px;height:20px;border-radius:2px;flex:none}
+.sname small{display:block;font-weight:400;font-size:11px;color:var(--ink-3);font-family:var(--f-mono);letter-spacing:.02em}
+td.ov{border-left:1px solid var(--rule)}
+
+/* ---------- charts ---------- */
+figure{margin:0}
+figcaption{font-size:13px;color:var(--ink-2);margin-top:12px;max-width:82ch}
+figcaption b{color:var(--ink);font-weight:600}
+.chart-top{display:flex;flex-wrap:wrap;gap:10px 18px;justify-content:space-between;align-items:center;margin-bottom:14px}
+.chart-title{font-family:var(--f-disp);font-weight:700;font-size:16px}
+.chart-note{font-family:var(--f-mono);font-size:11px;color:var(--ink-3)}
+.svg-host{position:relative}
+.svg-host > svg, .sm > svg, .dos-card > svg{display:block;width:100%;height:auto;overflow:visible}
+.chip > svg{display:inline-block;width:10px;height:10px;flex:none}
+.grid-line{stroke:var(--rule-2);stroke-width:1}
+.axis-line{stroke:var(--rule);stroke-width:1}
+.tick{font-family:var(--f-mono);font-size:10.5px;fill:var(--ink-3)}
+.axis-title{font-family:var(--f-mono);font-size:10.5px;fill:var(--ink-3);letter-spacing:.06em;text-transform:uppercase}
+.ser-line{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.ser-lab{font-family:var(--f-mono);font-size:10.5px;font-weight:600}
+.zero-line{stroke:var(--ink-3);stroke-width:1;stroke-dasharray:2 3}
+.thresh-line{stroke:var(--crit);stroke-width:1.5;stroke-dasharray:5 4;opacity:.75}
+.faded{opacity:.16}
+.subject-mode .faded{opacity:.5}
+.subject-mode table.mx tbody tr.dim{opacity:.5}
+.hit{fill:transparent;cursor:crosshair}
+
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:14px}
+.legend span{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2)}
+.legend i{width:14px;height:3px;border-radius:2px;flex:none}
+.legend i.sq{width:10px;height:10px;border-radius:2px}
+
+.tip{position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;z-index:20;
+  background:var(--panel);border:1px solid var(--rule);border-radius:8px;box-shadow:var(--shadow);
+  padding:9px 11px;font-size:12px;min-width:150px}
+.tip .th{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+.tip .row{display:flex;align-items:center;gap:7px;justify-content:space-between;padding:1.5px 0}
+.tip .row .k{display:flex;align-items:center;gap:6px;color:var(--ink-2)}
+.tip .row i{width:9px;height:9px;border-radius:2px;flex:none}
+.tip .row .v{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-weight:600}
+
+/* ---------- small multiples ---------- */
+.sm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px}
+.sm{border:1px solid var(--rule);border-radius:10px;padding:12px 12px 8px;background:var(--panel-2)}
+.sm.dim{opacity:.4}
+.sm h5{margin:0 0 2px;font:600 12.5px/1.2 var(--f-body);display:flex;align-items:center;gap:7px}
+.sm h5 .bar{width:3px;height:13px;border-radius:2px;flex:none}
+.sm .kv{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:10.5px;color:var(--ink-3);margin-top:4px}
+.sm .kv b{color:var(--ink);font-weight:600}
+
+/* ---------- data table view ---------- */
+details.tv{margin-top:16px;border-top:1px solid var(--rule-2);padding-top:12px}
+details.tv summary{cursor:pointer;font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-3);list-style:none}
+details.tv summary::-webkit-details-marker{display:none}
+details.tv summary::before{content:"▸ ";color:var(--accent)}
+details.tv[open] summary::before{content:"▾ "}
+details.tv summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.tv-scroll{overflow-x:auto;margin-top:12px}
+table.dt{border-collapse:collapse;width:100%;font-size:12.5px;min-width:640px}
+table.dt th,table.dt td{padding:6px 10px;border-bottom:1px solid var(--rule-2);text-align:right;white-space:nowrap}
+table.dt th:first-child,table.dt td:first-child{text-align:left}
+table.dt thead th{font:600 10.5px/1.3 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-3);border-bottom:1px solid var(--rule)}
+table.dt td{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+table.dt td:first-child{font-family:var(--f-body);font-weight:500}
+table.dt tbody tr.dim{opacity:.36}
+
+/* ---------- dossier ---------- */
+.dossier{display:flex;flex-direction:column;gap:12px}
+details.dos{border:1px solid var(--rule);border-radius:12px;background:var(--panel);box-shadow:var(--shadow);overflow:hidden}
+details.dos > summary{cursor:pointer;list-style:none;padding:16px 20px;display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center}
+details.dos > summary::-webkit-details-marker{display:none}
+details.dos > summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.dos-id{display:flex;align-items:center;gap:11px;min-width:230px}
+.dos-id .bar{width:4px;height:34px;border-radius:2px;flex:none}
+.dos-id b{font-family:var(--f-disp);font-size:19px;font-weight:700;display:block;line-height:1.15}
+.dos-id small{font-family:var(--f-mono);font-size:11px;color:var(--ink-3)}
+.dos-mini{display:flex;gap:18px;flex-wrap:wrap;margin-left:auto}
+.dos-mini div{font-family:var(--f-mono);font-size:11px;color:var(--ink-3);text-align:right}
+.dos-mini div b{display:block;font-size:15px;color:var(--ink);font-weight:600}
+.dos-body{padding:0 20px 22px;border-top:1px solid var(--rule-2)}
+.dos-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-top:18px}
+.dos-card h6{margin:0 0 8px;font:600 11px/1.3 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.dos-card .verdict-row{display:flex;flex-wrap:wrap;gap:7px}
+.kvlist{display:grid;grid-template-columns:1fr auto;gap:5px 14px;font-size:13px}
+.kvlist span{color:var(--ink-2)}
+.kvlist b{font-family:var(--f-mono);font-weight:600;font-variant-numeric:tabular-nums}
+.readout{font-size:13.5px;color:var(--ink-2);margin-top:16px;max-width:88ch}
+.readout b{color:var(--ink);font-weight:600}
+
+.foot{border-top:1px solid var(--rule);padding-top:24px;color:var(--ink-3);font-size:12.5px;max-width:86ch}
+.foot h3{font-size:15px;color:var(--ink);margin-bottom:8px}
+.foot ul{margin:8px 0 0;padding-left:20px}
+.foot li{margin-bottom:5px}
+.warnbox{border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);background:var(--warn-bg);
+  color:var(--warn-ink);border-radius:9px;padding:12px 15px;font-size:13px;margin-top:16px}
+.warnbox b{font-weight:700}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="controls">
+  <div class="controls-in">
+    <div class="ctl"><span>Execution basis</span>
+      <div class="seg" id="rungSeg" role="group" aria-label="Execution basis"></div>
+    </div>
+    <div class="ctl" id="focusCtl"><span id="focusLabel">Focus</span>
+      <div class="pills" id="focusPills"></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="eyebrow" id="mastEyebrow"></div>
+    <h1 id="mastTitle"></h1>
+    <p class="lede" id="mastLede"></p>
+    <div id="mastVerdict"></div>
+    <div class="meta" id="mastMeta"></div>
+  </header>
+
+  <section id="verdict">
+    <div class="sec-head"><span class="sec-num">00</span><h2 id="verdictHead">The verdict grid</h2></div>
+    <p class="sec-sub" id="verdictSub"></p>
+    <div class="panel pad">
+      <div class="mx-scroll"><table class="mx" id="mxTable"></table></div>
+      <div class="warnbox" id="rungWarn"></div>
+    </div>
+  </section>
+
+  <section id="decay">
+    <div class="sec-head"><span class="sec-num">01</span><h2>Breakeven decay: how fast the profit goes to zero</h2></div>
+    <p class="sec-sub">The question the review asked for directly. Sort every delivery day from best to worst,
+      then delete the best day, the two best, the three best… and watch what is left of the P&amp;L.</p>
+    <div class="defn">
+      <dl>
+        <dt>Breakeven days</dt>
+        <dd>How many of the <b>best</b> days you must delete before the entire P&amp;L is gone. The line's crossing
+          of zero. Two days means two lucky sessions <i>are</i> the strategy; 184 days means the earnings are spread
+          across most of the sample.</dd>
+        <dt>Why % of active days</dt>
+        <dd>A strategy that only trades 79 days cannot be compared with one that trades 250 on raw day counts.
+          Switch the x-axis to normalise by each strategy's own active days.</dd>
+        <dt>Why not Sharpe</dt>
+        <dd>Sharpe is mean ÷ SD. Removing a big positive day cuts the mean once and the SD twice, so on
+          right-skewed P&amp;L Sharpe <b>rises</b> as you truncate. The Sharpe view below shows that perverse
+          behaviour on purpose — P&amp;L retained is the honest measure.</dd>
+      </dl>
+    </div>
+    <div class="panel pad">
+      <div class="chart-top">
+        <div>
+          <div class="chart-title" id="decayTitle">P&amp;L retained after deleting the best <i>n</i> days</div>
+          <div class="chart-note" id="decayNote"></div>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <div class="ctl"><span>Metric</span>
+            <div class="seg" id="decayMetric" role="group" aria-label="Decay metric">
+              <button data-v="pnl" aria-pressed="true">P&amp;L</button>
+              <button data-v="sharpe" aria-pressed="false">Sharpe</button>
+              <button data-v="sortino" aria-pressed="false">Sortino</button>
+            </div>
+          </div>
+          <div class="ctl"><span>x-axis</span>
+            <div class="seg" id="decayX" role="group" aria-label="x axis mode">
+              <button data-v="abs" aria-pressed="true">Days</button>
+              <button data-v="pct" aria-pressed="false">% of active days</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figure>
+        <div class="svg-host" id="decayHost"></div>
+        <div class="legend" id="decayLegend"></div>
+        <figcaption id="decayCap"></figcaption>
+      </figure>
+      <details class="tv"><summary>Table view — breakeven days and concentration</summary>
+        <div class="tv-scroll"><table class="dt" id="decayTable"></table></div>
+      </details>
+    </div>
+  </section>
+
+  <section id="coinflip">
+    <div class="sec-head"><span class="sec-num">02</span><h2>The coin-flip trader</h2></div>
+    <p class="sec-sub">Ten thousand traders who take the same clips on the same products at the same timestamps
+      and flip a coin for the direction. If the strategy cannot separate itself from that crowd, its returns are
+      the timestamps, not the signal.</p>
+    <div class="defn">
+      <dl>
+        <dt>Null A</dt>
+        <dd>Same trades, same products, same clock, <b>side randomised</b>. 10,000 runs. This is the pure
+          direction test.</dd>
+        <dt>Read at mid</dt>
+        <dd>The coin flip is scored at <b>mid</b>, where friction is off both sides so the null sits on zero.
+          Score it after costs and the null goes deeply negative — beating it then only proves you churned less
+          than a random trader, which is not skill.</dd>
+        <dt>z-distance</dt>
+        <dd>(observed Sharpe − null mean) ÷ null SD. The seed-stable statistic. The
+          <i>best of 10,000</i> figure moves by up to 1.5 between random seeds, so it is context, never the verdict.</dd>
+        <dt>Thresholds</dt>
+        <dd><b>Keep</b> z ≥ 4 and the best-of-10,000 verdict holds across five seeds ·
+          <b>Suspect</b> z 2.5–4, or that verdict flips with the seed ·
+          <b>Fail</b> z &lt; 2.5 or p &gt; 0.01.</dd>
+      </dl>
+    </div>
+    <div class="panel pad">
+      <div class="chart-top">
+        <div>
+          <div class="chart-title">Where the strategy sits in its own coin-flip distribution</div>
+          <div class="chart-note">Null A at mid · 10,000 runs · bars are the null's Sharpe histogram</div>
+        </div>
+      </div>
+      <div class="sm-grid" id="cfGrid"></div>
+      <figure style="margin-top:22px">
+        <div class="chart-title" style="margin-bottom:10px">z-distance from the coin flip</div>
+        <div class="svg-host" id="cfZHost"></div>
+        <figcaption id="cfCap"></figcaption>
+      </figure>
+      <details class="tv"><summary>Table view — Null A and Null B</summary>
+        <div class="tv-scroll"><table class="dt" id="cfTable"></table></div>
+      </details>
+    </div>
+  </section>
+
+  <section id="boot">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Bootstrapped Sharpe and Sortino</h2></div>
+    <p class="sec-sub">A single Sharpe number is one draw. Resample the daily P&amp;L 10,000 times and the
+      interval tells you what the sample can actually support.</p>
+    <div class="defn">
+      <dl>
+        <dt>Bootstrap</dt>
+        <dd>Draw 546 days at random <b>with replacement</b> from the strategy's own days, 10,000 times, and
+          recompute the statistic. The 2.5th–97.5th percentile band is the 95% interval.</dd>
+        <dt>Block bootstrap</dt>
+        <dd>Same, but resampling contiguous 8-day blocks so day-to-day autocorrelation survives the resample.
+          Where the two intervals disagree, the wider one is quoted.</dd>
+        <dt>t-statistic</dt>
+        <dd>Point estimate ÷ bootstrap standard error. The Newey–West t on mean daily P&amp;L is shown
+          alongside in the table — it corrects for serial correlation instead of resampling.</dd>
+        <dt>Thresholds</dt>
+        <dd><b>Keep</b> lower bound &gt; 1.0 · <b>Suspect</b> lower bound 0 to 1.0 ·
+          <b>Fail</b> the interval contains zero.</dd>
+      </dl>
+    </div>
+    <div class="panel pad">
+      <div class="chart-top">
+        <div>
+          <div class="chart-title" id="bootTitle">95% bootstrap interval, annualised Sharpe</div>
+          <div class="chart-note" id="bootNote"></div>
+        </div>
+        <div class="ctl"><span>Statistic</span>
+          <div class="seg" id="bootStat" role="group" aria-label="Bootstrap statistic">
+            <button data-v="sharpe" aria-pressed="true">Sharpe</button>
+            <button data-v="sortino" aria-pressed="false">Sortino</button>
+          </div>
+        </div>
+      </div>
+      <figure>
+        <div class="svg-host" id="bootHost"></div>
+        <div class="legend" id="bootLegend"></div>
+        <figcaption id="bootCap"></figcaption>
+      </figure>
+      <details class="tv"><summary>Table view — intervals and t-statistics</summary>
+        <div class="tv-scroll"><table class="dt" id="bootTable"></table></div>
+      </details>
+    </div>
+  </section>
+
+  <section id="dsr">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Deflated Sharpe and its breakeven trial count</h2></div>
+    <p class="sec-sub">The one number in the pack that prices the search itself.</p>
+    <div class="defn">
+      <h4>What deflated Sharpe actually is</h4>
+      <p>If you try 100 strategies on the same 18 months and report the best one, its Sharpe is high partly because
+        it won a lottery. Deflated Sharpe (Bailey &amp; López de Prado) asks the honest question:
+        <b>given that N attempts were made, what is the probability this strategy's true Sharpe is above zero?</b>
+        It docks the raw number for three things at once — how many attempts were made, how short the sample is,
+        and how skewed and fat-tailed the daily P&amp;L is (a few enormous days flatter Sharpe far more than they
+        should). Read it as a probability: <b>above 0.95 the edge survives the search; below 0.95 the headline
+        Sharpe is inside what searching alone would have produced.</b></p>
+      <dl style="margin-top:14px">
+        <dt>Breakeven trials</dt>
+        <dd>The number of attempts at which the curve falls through 0.95. Compare it with the count the submitter
+          <b>declared</b>. If breakeven is below declared, the strategy is dead on the submitter's own admission —
+          no further argument needed.</dd>
+        <dt>Two variance assumptions</dt>
+        <dd>The maths needs the variance of Sharpe <i>across the trials that were run</i>, and the records do not
+          contain it. <b>Analytic</b> assumes the trials differ only by sampling noise — generous.
+          <b>Cross-sectional</b> uses the observed spread of daily Sharpe across the seven submissions
+          (v = <span class="mono" id="vsearch"></span>) — harsh. Both are plotted; the verdict uses the generous one.</dd>
+        <dt>Thresholds</dt>
+        <dd><b>Keep</b> breakeven ≥ 10× declared (or never breaks) · <b>Suspect</b> 1× to 10× declared ·
+          <b>Fail</b> breakeven below declared.</dd>
+      </dl>
+    </div>
+    <div class="panel pad">
+      <div class="chart-top">
+        <div>
+          <div class="chart-title">Deflated Sharpe against the number of trials searched</div>
+          <div class="chart-note" id="dsrNote"></div>
+        </div>
+        <div class="ctl"><span>Trial variance</span>
+          <div class="seg" id="dsrVar" role="group" aria-label="Variance assumption">
+            <button data-v="analytic" aria-pressed="true">Analytic</button>
+            <button data-v="search" aria-pressed="false">Cross-sectional</button>
+          </div>
+        </div>
+      </div>
+      <figure>
+        <div class="svg-host" id="dsrHost"></div>
+        <div class="legend" id="dsrLegend"></div>
+        <figcaption id="dsrCap"></figcaption>
+      </figure>
+      <details class="tv"><summary>Table view — declared vs breakeven trials</summary>
+        <div class="tv-scroll"><table class="dt" id="dsrTable"></table></div>
+      </details>
+    </div>
+  </section>
+
+  <section id="base">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Baseline comparison</h2></div>
+    <p class="sec-sub">Three benchmarks that need no signal at all. If a strategy cannot beat them, whatever it
+      found was in the market, not in the model.</p>
+    <div class="defn">
+      <dl>
+        <dt>Always long / short</dt>
+        <dd>The <b>same trades, same products, same timestamps, same clips</b> — direction forced one way.
+          Isolates the direction call from the selection and timing. For a strategy that is 100% long anyway,
+          always-long <i>is</i> the strategy — that is information, not a bug.</dd>
+        <dt>Matched passive</dt>
+        <dd>10 MW long on <b>every</b> product in the window, entered at the strategy's own median entry snapshot
+          and held for its median holding period. The fair clock-matched comparison, because the book drifts up
+          <span class="mono" id="driftTxt"></span> per 15-minute step and a longer hold collects more of it for free.</dd>
+        <dt>Full-window buy-and-hold</dt>
+        <dd>10 MW long on every product from the first book row to the last: <b>snapshot 0</b> (delivery start
+          − 10h30m) to <b>snapshot 39</b> (delivery start − 45m). Snapshot 39 is the last tradeable row, fifteen
+          minutes before gate closure at start − 30m — nothing in the pack reaches gate. It lifts the ask on
+          entry and hits the bid on exit, so it pays the same round trip everyone else does; it just pays it once
+          over 9h45.</dd>
+        <dt>Breadth-neutral edge ratio</dt>
+        <dd>Edge per MWh ÷ what holding the whole market over the same clock window earned per MWh, at mid.
+          Sharpe rewards the passive benchmark for holding 24 products a day when a selective strategy holds
+          one; this ratio removes that advantage. <b>Keep</b> ≥ 3× · <b>Suspect</b> 1–3× ·
+          <b>Fail</b> below 1×, or always-long beats the strategy.</dd>
+      </dl>
+    </div>
+    <div class="panel pad">
+      <div class="chart-top">
+        <div>
+          <div class="chart-title">Strategy against benchmarks that need no signal</div>
+          <div class="chart-note" id="baseNote"></div>
+        </div>
+      </div>
+      <figure>
+        <div class="svg-host" id="baseHost"></div>
+        <div class="legend" id="baseLegend"></div>
+        <figcaption id="baseCap"></figcaption>
+      </figure>
+      <figure style="margin-top:24px">
+        <div class="chart-title" style="margin-bottom:10px">Breadth-neutral edge ratio <span class="chart-note">(× the market, at mid)</span></div>
+        <div class="svg-host" id="ratioHost"></div>
+      </figure>
+      <details class="tv"><summary>Table view — all baselines</summary>
+        <div class="tv-scroll"><table class="dt" id="baseTable"></table></div>
+      </details>
+    </div>
+  </section>
+
+  <section id="dossiers">
+    <div class="sec-head"><span class="sec-num">06</span><h2 id="dosHead">Strategy by strategy</h2></div>
+    <p class="sec-sub" id="dosSub"></p>
+    <div class="dossier" id="dossierList"></div>
+  </section>
+
+  <div class="foot">
+    <h3>How to read this and what it does not do</h3>
+    <p>Round trips are recovered from the blotters by FIFO matching per delivery product and repriced against the
+      order book; nothing here uses strategy source code. Every claimed P&amp;L, Sharpe, Sortino, drawdown and hit
+      rate reproduces exactly at the mid basis, which is what makes the fee and spread deltas trustworthy.
+      Sortino follows the submitters' own definition — sample SD of negative days only — because that is what
+      reproduces their claimed figures.</p>
+    <ul>
+      <li><b>Execution bases.</b> <span class="mono">mid</span> = (bid+ask)/2 both legs, no fee — a price nobody
+        quoted. <span class="mono">passive_in_fee</span> = entry rests at mid, exit crosses, fee both sides.
+        <span class="mono">cross_fee</span> = buy the ask, sell the bid, fee both sides — the honest rung.</li>
+      <li><b>Slippage</b> is modelled as spread crossing, not as market impact. Book depth is a uniform 10 MW at
+        each of three levels and every clip is 10 MW (20 MW for PINGPONG), so walking the book differs from
+        crossing only for PINGPONG.</li>
+      <li><b>Not modelled:</b> fill probability, adverse selection, market impact, and imbalance settlement —
+        there is no imbalance price in the data.</li>
+      <li><b>One correction to the earlier audit.</b> Its baseline table priced the strategy leg at mid while
+        pricing always-long, always-short and buy-and-hold at the selected rung. Every comparison on this page
+        prices both sides at the same rung.</li>
+    </ul>
+  </div>
+</div>
+
+<script id="DATA" type="application/json">__DATA__</script>
+<script>
+(function(){
+"use strict";
+const D = JSON.parse(document.getElementById("DATA").textContent);
+const ALL = D.order;                    /* every strategy in the payload */
+const SUBJECT = D.subject || null;      /* null = combined report */
+const SER = {}; (D.palette_order||D.order).forEach((k,i)=>SER[k]="--s"+(i+1));
+const COL = {}; ALL.forEach(k=>{ COL[k]="var("+(SER[k]||"--s1")+")"; });
+const RUNG_LABEL = {mid:"Mid, no fee", passive_in_fee:"Passive in, fee", cross_fee:"Cross + fee"};
+const RUNG_SHORT = {mid:"mid", passive_in_fee:"passive_in_fee", cross_fee:"cross_fee"};
+const TESTS = D.tests;
+let rung = D.rung || "cross_fee", focus = SUBJECT;
+let SUBS = D.order.slice();
+let peers = true;                       /* single-strategy mode: show peer context */
+let decayMetric = "pnl", decayX = "abs", bootStat = "sharpe", dsrVar = "analytic";
+
+/* Which strategies are drawn, and in what colour.
+   In a single-strategy report the subject keeps its own palette hue and peers
+   drop to a neutral, so the subject reads first and a set of seven reports
+   still reads as one system. */
+const SUBS_ALL = () => !SUBJECT ? ALL.slice()
+  : (peers ? [SUBJECT].concat(ALL.filter(k=>k!==SUBJECT)) : [SUBJECT]);
+const isPeer = k => !!SUBJECT && k !== SUBJECT;
+const col = k => isPeer(k) ? "var(--ink-3)" : COL[k];
+const dim = k => SUBJECT ? isPeer(k) : (focus && focus!==k);
+
+/* ---------- small helpers ---------- */
+const NS="http://www.w3.org/2000/svg";
+function el(t,a,txt){const n=document.createElementNS(NS,t);
+  for(const k in (a||{})) n.setAttribute(k,a[k]);
+  if(txt!=null) n.textContent=txt; return n;}
+function h(t,a,txt){const n=document.createElement(t);
+  for(const k in (a||{})){ if(k==="class") n.className=a[k]; else if(k==="html") n.innerHTML=a[k]; else n.setAttribute(k,a[k]); }
+  if(txt!=null) n.textContent=txt; return n;}
+const fmtE = n => (n<0?"−":"")+"€"+Math.abs(Math.round(n)).toLocaleString("en-US");
+const f2 = n => (n==null||!isFinite(n)) ? "—" : n.toFixed(2);
+const f1 = n => (n==null||!isFinite(n)) ? "—" : n.toFixed(1);
+const pc = n => (n==null||!isFinite(n)) ? "—" : (100*n).toFixed(0)+"%";
+const S = k => D.subs[k];
+const R = k => D.subs[k].rungs[rung];
+const V = k => D.subs[k].verdicts[rung];
+const CLS = {KEEP:"keep", SUSPECT:"suspect", FAIL:"fail"};
+const ICON = {
+  keep:'<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.4 5.2 3.7 7.6 8.6 2.3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  suspect:'<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.1 9.3 8.7H.7z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5 4v2.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="5" cy="7.5" r=".7" fill="currentColor"/></svg>',
+  fail:'<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.2 2.2l5.6 5.6M7.8 2.2 2.2 7.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'
+};
+function chip(v){const c=CLS[v]; const s=h("span",{class:"chip "+c}); s.innerHTML=ICON[c]+"<span>"+v+"</span>"; return s;}
+const seedWord = s => String(s).replace(/\*/g,"").trim().toLowerCase();
+const seedFlips = k => /flip/i.test(String(S(k).seed.beats_max)) || S(k).seed.above_q999==="FLIPS";
+
+function tipBox(host){const t=h("div",{class:"tip"}); host.appendChild(t); return t;}
+function showTip(t,host,x,y,html){
+  t.innerHTML=html; t.style.opacity=1;
+  const hw=host.clientWidth, tw=t.offsetWidth;
+  let left = x+14; if(left+tw>hw) left = x-tw-14; if(left<0) left=0;
+  t.style.left=left+"px"; t.style.top=Math.max(0,y-10)+"px";
+}
+/* place end-of-line labels without collisions, inside [top,bottom] */
+function stackLabels(L,top,bottom,gap){
+  L.sort((a,b)=>a.y-b.y);
+  let p=-1e9; L.forEach(o=>{o.ly=Math.max(o.y,p+gap); p=o.ly;});
+  if(p>bottom){ let n=bottom; for(let i=L.length-1;i>=0;i--){ L[i].ly=Math.min(L[i].ly,n); n=L[i].ly-gap; } }
+  p=top-gap; L.forEach(o=>{o.ly=Math.max(o.ly,p+gap); p=o.ly;});
+  return L;
+}
+function niceTicks(lo,hi,n){
+  const span=(hi-lo)||1, raw=span/n, mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const norm=raw/mag; const step=(norm<1.5?1:norm<3?2:norm<7?5:10)*mag;
+  const out=[]; for(let v=Math.ceil(lo/step)*step; v<=hi+1e-9; v+=step) out.push(+v.toFixed(10));
+  return out;
+}
+
+/* ---------- masthead ---------- */
+function renderMast(){
+  const m=document.getElementById("mastMeta"); m.innerHTML="";
+  const eye=document.getElementById("mastEyebrow");
+  const ttl=document.getElementById("mastTitle");
+  const led=document.getElementById("mastLede");
+  const vb=document.getElementById("mastVerdict"); vb.innerHTML="";
+  const commonTail =
+    "Every figure is repriced from the blotter against <span class=\"mono\">book_snapshots.csv</span> — no strategy "+
+    "source code — and carries the <span class=\"mono\">"+D.fee.toFixed(2)+" EUR/MWh</span> fee per side plus whatever "+
+    "spread the chosen execution basis makes you cross. Verdicts are <b>Keep</b>, <b>Suspect</b> or <b>Fail</b> "+
+    "against thresholds stated in each section.";
+  if(SUBJECT){
+    const s=S(SUBJECT), r=R(SUBJECT), v=V(SUBJECT);
+    eye.textContent="Gauntlet Day 2 · Luck audit · "+s.class;
+    ttl.textContent=s.name;
+    led.innerHTML=s.name+" put through the five checks the review asked for, with the other six "+
+      "submissions kept on the page as context. "+commonTail;
+    const strip=h("div",{class:"vstrip"});
+    const head=h("div",{class:"vstrip-head"});
+    head.appendChild(h("span",{class:"vstrip-lbl"},"Verdict on "+RUNG_SHORT[rung]));
+    head.appendChild(chip(v.overall));
+    strip.appendChild(head);
+    const grid=h("div",{class:"vstrip-grid"});
+    TESTS.forEach(t=>{
+      const c=h("div",{class:"vstrip-cell"});
+      c.appendChild(h("span",{class:"vstrip-t"},t.name));
+      c.appendChild(chip(v[t.id]));
+      c.appendChild(h("p",{class:"vstrip-why"},(s.why&&s.why[rung]&&s.why[rung][t.id])||""));
+      grid.appendChild(c);
+    });
+    strip.appendChild(grid);
+    vb.appendChild(strip);
+    [[s.n_trips.toLocaleString("en-US")+" round trips"],
+     [s.days+" delivery days · "+s.window[0]+" → "+s.window[1]],
+     ["declares "+s.declared_trials+" trials"],
+     ["median hold "+s.hold_med+" min · "+pc(s.long_frac)+" long"],
+     ["fee "+D.fee.toFixed(2)+" EUR/MWh per side"],
+     ["generated "+s.generated]].forEach(x=>m.appendChild(h("span",null,x[0])));
+  } else {
+    const tot=ALL.reduce((a,k)=>a+S(k).n_trips,0);
+    eye.textContent="Gauntlet Day 2 · Luck audit · review response";
+    ttl.textContent="Five tests, seven strategies";
+    led.innerHTML="Each of the seven submissions put through the five checks the review asked for, on one page. "+commonTail;
+    const s0=S(ALL[0]);
+    [[ALL.length+" submissions"],[s0.days+" delivery days · "+s0.window[0]+" → "+s0.window[1]],
+     [tot.toLocaleString("en-US")+" round trips repriced"],
+     ["fee "+D.fee.toFixed(2)+" EUR/MWh per side"],
+     ["generated "+s0.generated]].forEach(x=>m.appendChild(h("span",null,x[0])));
+  }
+  document.getElementById("vsearch").textContent = D.v_search.toFixed(5);
+  document.getElementById("driftTxt").textContent = "+"+D.drift_per_step.toFixed(3)+" EUR/MWh";
+  document.getElementById("verdictHead").textContent = SUBJECT ? "The verdict grid, in context" : "The verdict grid";
+  document.getElementById("verdictSub").innerHTML = SUBJECT
+    ? S(SUBJECT).name+" is the highlighted row; the other six are here so the reading has a scale. Worst cell "+
+      "sets the row. Switch the execution basis in the bar above and watch the grid change: at mid — the price "+
+      "nobody quoted — almost everything survives."
+    : "Worst cell sets the row. Switch the execution basis in the bar above and watch the grid change: at mid — "+
+      "the price nobody quoted — almost everything survives. Charge the fee and cross the spread and four of "+
+      "seven fall over.";
+  document.getElementById("dosHead").textContent = SUBJECT ? "The full dossier" : "Strategy by strategy";
+  document.getElementById("dosSub").textContent = SUBJECT
+    ? "Every number behind the five verdicts for "+S(SUBJECT).name+", with the peers collapsed beneath it."
+    : "Every strategy's five verdicts, its numbers on the selected basis, and the one sentence that decides it. Open any row.";
+}
+
+/* ---------- controls ---------- */
+(function(){
+  const seg=document.getElementById("rungSeg");
+  D.rungs.forEach(r=>{
+    const b=h("button",null,RUNG_LABEL[r]);
+    b.setAttribute("aria-pressed", String(r===rung));
+    b.onclick=()=>{rung=r; [...seg.children].forEach(c=>c.setAttribute("aria-pressed",String(c===b))); renderAll();};
+    seg.appendChild(b);
+  });
+  const pills=document.getElementById("focusPills");
+  if(SUBJECT){
+    document.getElementById("focusLabel").textContent="Peer context";
+    const sg=h("div",{class:"seg"});
+    [["Shown",true],["Hidden",false]].forEach(o=>{
+      const b=h("button",null,o[0]);
+      b.setAttribute("aria-pressed",String(o[1]===peers));
+      b.onclick=()=>{peers=o[1];
+        [...sg.children].forEach(c=>c.setAttribute("aria-pressed",String(c===b)));
+        renderAll();};
+      sg.appendChild(b);
+    });
+    pills.appendChild(sg);
+  } else {
+    const all=h("button",{class:"pill"},"All seven");
+    all.setAttribute("aria-pressed","true");
+    all.onclick=()=>setFocus(null);
+    pills.appendChild(all);
+    ALL.forEach(k=>{
+      const b=h("button",{class:"pill"});
+      b.setAttribute("aria-pressed","false");
+      b.appendChild(h("i",{class:"swatch",style:"background:"+col(k)}));
+      b.appendChild(h("span",null,S(k).name));
+      b.onclick=()=>setFocus(focus===k?null:k);
+      b.dataset.k=k;
+      pills.appendChild(b);
+    });
+  }
+  function setFocus(k){
+    focus=k;
+    [...pills.children].forEach(c=>c.setAttribute("aria-pressed",
+      String((c.dataset.k||null)===k)));
+    renderAll();
+  }
+  function bindSeg(id, set){
+    const s=document.getElementById(id);
+    [...s.children].forEach(b=>b.onclick=()=>{
+      [...s.children].forEach(c=>c.setAttribute("aria-pressed",String(c===b)));
+      set(b.dataset.v); renderAll();
+    });
+  }
+  bindSeg("decayMetric", v=>decayMetric=v);
+  bindSeg("decayX", v=>decayX=v);
+  bindSeg("bootStat", v=>bootStat=v);
+  bindSeg("dsrVar", v=>dsrVar=v);
+})();
+
+/* =================== 00 verdict matrix =================== */
+function renderMatrix(){
+  const t=document.getElementById("mxTable"); t.innerHTML="";
+  const thead=h("thead"); const tr=h("tr");
+  tr.appendChild(h("th",null,"Strategy"));
+  TESTS.forEach(x=>tr.appendChild(h("th",null,x.name)));
+  tr.appendChild(h("th",{class:"ov"},"Overall"));
+  tr.appendChild(h("th",null,"P&L "+RUNG_SHORT[rung]));
+  tr.appendChild(h("th",null,"Sharpe"));
+  thead.appendChild(tr); t.appendChild(thead);
+  const tb=h("tbody");
+  const rank={KEEP:0,SUSPECT:1,FAIL:2};
+  const order=[...SUBS].sort((a,b)=>{
+    if(SUBJECT){ if(a===SUBJECT) return -1; if(b===SUBJECT) return 1; }
+    const d=rank[V(a).overall]-rank[V(b).overall];
+    return d!==0?d:R(b).sharpe-R(a).sharpe;
+  });
+  order.forEach(k=>{
+    const row=h("tr");
+    if(SUBJECT) row.className = (k===SUBJECT ? "hi" : "dim");
+    else if(focus===k) row.className="hi";
+    const td=h("td");
+    const nm=h("div",{class:"sname"});
+    nm.appendChild(h("span",{class:"bar",style:"background:"+col(k)}));
+    const box=h("div"); box.appendChild(h("span",null,S(k).name));
+    box.appendChild(h("small",null,S(k).class));
+    nm.appendChild(box); td.appendChild(nm); row.appendChild(td);
+    TESTS.forEach(x=>{const c=h("td"); c.appendChild(chip(V(k)[x.id])); row.appendChild(c);});
+    const ov=h("td",{class:"ov"}); ov.appendChild(chip(V(k).overall)); row.appendChild(ov);
+    row.appendChild(h("td",{class:"num"},fmtE(R(k).pnl)));
+    row.appendChild(h("td",{class:"num"},f2(R(k).sharpe)));
+    tb.appendChild(row);
+  });
+  t.appendChild(tb);
+  const counts={KEEP:0,SUSPECT:0,FAIL:0};
+  SUBS.forEach(k=>counts[V(k).overall]++);
+  const w=document.getElementById("rungWarn");
+  const keeps=SUBS.filter(k=>V(k).overall==="KEEP").map(k=>S(k).name);
+  if(SUBJECT){
+    const v=V(SUBJECT), s=S(SUBJECT);
+    const worst=TESTS.filter(x=>v[x.id]===v.overall).map(x=>x.name);
+    w.innerHTML = "<b>"+s.name+" on "+RUNG_SHORT[rung]+": "+v.overall+"</b> — "+
+      (v.overall==="KEEP" ? "it clears all five tests"
+        : "set by "+worst.join(", "))+". "+
+      (peers?("Of all seven, "+counts.KEEP+" keep · "+counts.SUSPECT+
+      " suspect · "+counts.FAIL+" fail"+(keeps.length?", surviving all five: <b>"+keeps.join(", ")+"</b>":"")+".")
+      :"Turn peer context on in the bar above to see where that sits against the other six.");
+  } else {
+    w.innerHTML = "<b>On "+RUNG_SHORT[rung]+":</b> "+counts.KEEP+" keep · "+counts.SUSPECT+
+      " suspect · "+counts.FAIL+" fail. "+
+      (keeps.length? "Surviving all five tests: <b>"+keeps.join(", ")+"</b>." : "Nothing survives all five tests.");
+  }
+}
+
+/* =================== 01 decay =================== */
+function renderDecay(){
+  const host=document.getElementById("decayHost"); host.innerHTML="";
+  const W=1080, H=430, m={t:16,r:118,b:52,l:62};
+  const iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const mi = decayMetric==="pnl"?1:(decayMetric==="sharpe"?2:3);
+  const usable = SUBS.filter(k=>R(k).pnl>0 && R(k).decay.length>1);
+  const dropped = SUBS.filter(k=>!(R(k).pnl>0 && R(k).decay.length>1));
+
+  const series = usable.map(k=>{
+    const act=R(k).active_days;
+    const pts=R(k).decay.filter(p=>p[mi]!=null).map(p=>({
+      x: decayX==="abs"? p[0] : 100*p[0]/act, y: p[mi], k:p[0]
+    }));
+    return {k, pts};
+  }).filter(s=>s.pts.length>1);
+
+  let xmax=0, ymin=0, ymax=1;
+  series.forEach(s=>s.pts.forEach(p=>{ if(p.x>xmax)xmax=p.x; if(p.y<ymin)ymin=p.y; if(p.y>ymax)ymax=p.y; }));
+  if(decayMetric!=="pnl"){ ymax=Math.min(ymax,2.2); }
+  ymin=Math.min(ymin,-0.05); ymax=Math.max(ymax,1.02);
+  if(decayX==="pct") xmax=Math.min(xmax,100);
+
+  const X = v => m.l + (v/xmax)*iw;
+  const Y = v => m.t + ih - ((v-ymin)/(ymax-ymin))*ih;
+  const svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img",
+    "aria-label":"Fraction of "+decayMetric+" retained as the best days are deleted, one line per strategy"});
+
+  niceTicks(ymin,ymax,6).forEach(v=>{
+    svg.appendChild(el("line",{x1:m.l,x2:m.l+iw,y1:Y(v),y2:Y(v),class:v===0?"zero-line":"grid-line"}));
+    svg.appendChild(el("text",{x:m.l-9,y:Y(v)+3.5,class:"tick","text-anchor":"end"},(100*v).toFixed(0)+"%"));
+  });
+  niceTicks(0,xmax,7).forEach(v=>{
+    if(v<0) return;
+    svg.appendChild(el("text",{x:X(v),y:m.t+ih+18,class:"tick","text-anchor":"middle"},
+      decayX==="abs"?String(Math.round(v)):Math.round(v)+"%"));
+  });
+  svg.appendChild(el("line",{x1:m.l,x2:m.l+iw,y1:m.t+ih,y2:m.t+ih,class:"axis-line"}));
+  svg.appendChild(el("text",{x:m.l,y:H-8,class:"axis-title"},
+    decayX==="abs"?"best days deleted":"best days deleted, % of the strategy's own active days"));
+  svg.appendChild(el("text",{x:m.l-46,y:m.t-4,class:"axis-title","text-anchor":"start"},
+    decayMetric==="pnl"?"P&L kept":(decayMetric==="sharpe"?"Sharpe kept":"Sortino kept")));
+
+  // lines + zero-crossing markers + end labels
+  const labels=[];
+  series.forEach(s=>{
+    const d=s.pts.map((p,i)=>(i?"L":"M")+X(Math.min(p.x,xmax)).toFixed(1)+" "+Y(Math.max(Math.min(p.y,ymax),ymin)).toFixed(1)).join(" ");
+    svg.appendChild(el("path",{d, class:"ser-line"+(dim(s.k)?" faded":""), stroke:col(s.k)}));
+    const last=s.pts[s.pts.length-1];
+    const z = R(s.k).days_to_zero;
+    if(decayMetric==="pnl" && z!=null){
+      const zx = decayX==="abs"? z : 100*z/R(s.k).active_days;
+      if(zx<=xmax){
+        svg.appendChild(el("circle",{cx:X(zx),cy:Y(0),r:4.5,fill:col(s.k),
+          stroke:"var(--panel)","stroke-width":2, class:dim(s.k)?"faded":""}));
+      }
+    }
+    labels.push({k:s.k, x:X(Math.min(last.x,xmax)), y:Y(Math.max(Math.min(last.y,ymax),ymin)), z});
+  });
+  stackLabels(labels, m.t+6, m.t+ih, 13.5).forEach(L=>{
+    const txt = S(L.k).name + (decayMetric==="pnl" && L.z!=null ? "  "+L.z+"d" : "");
+    svg.appendChild(el("text",{x:m.l+iw+8,y:L.ly+3.5,
+      class:"ser-lab"+(dim(L.k)?" faded":""), fill:col(L.k)}, txt));
+  });
+
+  // hover crosshair
+  const tip=tipBox(host);
+  const cross=el("line",{x1:0,x2:0,y1:m.t,y2:m.t+ih,class:"axis-line",opacity:0});
+  svg.appendChild(cross);
+  const hit=el("rect",{x:m.l,y:m.t,width:iw,height:ih,class:"hit"});
+  svg.appendChild(hit);
+  hit.addEventListener("mousemove",ev=>{
+    const r=svg.getBoundingClientRect();
+    const px=(ev.clientX-r.left)*(W/r.width);
+    const xv=Math.max(0,((px-m.l)/iw)*xmax);
+    cross.setAttribute("x1",X(xv)); cross.setAttribute("x2",X(xv)); cross.setAttribute("opacity",".6");
+    let rows="";
+    series.forEach(s=>{
+      let best=null,bd=1e9;
+      s.pts.forEach(p=>{const d=Math.abs(p.x-xv); if(d<bd){bd=d;best=p;}});
+      if(!best) return;
+      rows+='<div class="row"><span class="k"><i style="background:'+col(s.k)+'"></i>'+S(s.k).name+
+        '</span><span class="v">'+(100*best.y).toFixed(0)+'%</span></div>';
+    });
+    const head = decayX==="abs" ? Math.round(xv)+" best days deleted"
+                                : Math.round(xv)+"% of active days deleted";
+    showTip(tip,host,(ev.clientX-r.left)*(host.clientWidth/r.width),
+      (ev.clientY-r.top)*(host.clientWidth/r.width), '<div class="th">'+head+'</div>'+rows);
+  });
+  hit.addEventListener("mouseleave",()=>{tip.style.opacity=0;cross.setAttribute("opacity",0);});
+  host.appendChild(svg);
+
+  // legend
+  const lg=document.getElementById("decayLegend"); lg.innerHTML="";
+  usable.forEach(k=>{
+    const s=h("span",{style:dim(k)?"opacity:.4":""});
+    s.appendChild(h("i",{style:"background:"+col(k)}));
+    s.appendChild(h("span",null,S(k).name));
+    lg.appendChild(s);
+  });
+  if(decayMetric==="pnl"){
+    const s=h("span"); s.appendChild(h("i",{class:"sq",style:"background:var(--ink-3);border-radius:50%"}));
+    s.appendChild(h("span",null,"breakeven — P&L fully erased")); lg.appendChild(s);
+  }
+
+  document.getElementById("decayNote").textContent =
+    "Basis "+RUNG_SHORT[rung]+" · marker = the day count at which P&L reaches zero";
+  document.getElementById("decayTitle").innerHTML =
+    (decayMetric==="pnl"?"P&amp;L":(decayMetric==="sharpe"?"Sharpe":"Sortino"))+
+    " retained after deleting the best <i>n</i> days";
+
+  const cap=document.getElementById("decayCap");
+  if(decayMetric==="pnl"){
+    const rank=usable.map(k=>({k,z:R(k).days_to_zero,p:100*R(k).days_to_zero/R(k).active_days}))
+      .sort((a,b)=>a.z-b.z);
+    const worst=rank[0], best=rank[rank.length-1];
+    const me=rank.find(x=>x.k===SUBJECT);
+    const tail = dropped.length ? " Not plotted: "+dropped.map(k=>S(k).name).join(", ")+
+        " — negative P&L on this basis, so there is nothing to erase." : "";
+    if(me){
+      const ahead=rank.filter(x=>x.z<me.z).length;
+      cap.innerHTML = "Every line starts at 100% and falls as its best days are removed. "+
+        "<b>"+S(SUBJECT).name+"</b> reaches zero after <b>"+me.z+" day"+(me.z===1?"":"s")+
+        "</b> — "+me.p.toFixed(1)+"% of the "+R(SUBJECT).active_days+" days it actually traded"+
+        (peers? ", putting it "+(ahead===0?"last":(ahead===rank.length-1?"first":"in position "+(rank.length-ahead)))+
+          " of the "+rank.length+" plotted. "+
+          (SUBJECT===worst.k ? "Nothing on the page dies faster; the most durable line is <b>"+S(best.k).name+
+              "</b> at <b>"+best.z+" days</b>."
+           : SUBJECT===best.k ? "Nothing on the page lasts longer; the shortest-lived is <b>"+S(worst.k).name+
+              "</b> at <b>"+worst.z+" day"+(worst.z===1?"":"s")+"</b>."
+           : "The shortest-lived line here is <b>"+S(worst.k).name+"</b> at <b>"+worst.z+" day"+
+              (worst.z===1?"":"s")+"</b>; the most durable is <b>"+S(best.k).name+"</b> at <b>"+best.z+"</b>.")
+        : ".")+tail;
+    } else {
+      cap.innerHTML = "Every line starts at 100% and falls as its best days are removed. The gap is the whole story: "+
+        "<b>"+S(worst.k).name+"</b> is gone after <b>"+worst.z+" day"+(worst.z===1?"":"s")+
+        "</b> ("+worst.p.toFixed(1)+"% of its active days), while <b>"+S(best.k).name+"</b> needs <b>"+best.z+
+        " days</b> ("+best.p.toFixed(1)+"%) deleted before it breaks even."+tail;
+    }
+  } else if(decayMetric==="sharpe"){
+    cap.innerHTML = "Note the lines that go <b>above</b> 100%. Deleting a strategy's best day cuts its mean once "+
+      "and its standard deviation twice, so on right-skewed P&L truncation <i>improves</i> Sharpe while the money "+
+      "disappears. This is exactly why the verdict uses P&L retained, not Sharpe.";
+  } else {
+    cap.innerHTML = "Sortino here is the submitters' own definition — mean ÷ SD of negative days only — so removing "+
+      "winning days leaves the denominator almost untouched and the ratio falls roughly with the mean. It tracks "+
+      "P&L retained closely, which is the useful check on it.";
+  }
+
+  // table
+  const t=document.getElementById("decayTable"); t.innerHTML="";
+  const cols=["Strategy","Breakeven days","% of active days","Active days","Best day, % of P&L",
+              "Best 5 days, % of P&L","Breakeven trips","Trips","Winning trips"];
+  const tr=h("tr"); cols.forEach(c=>tr.appendChild(h("th",null,c)));
+  t.appendChild(h("thead")).appendChild(tr);
+  const tb=h("tbody");
+  [...SUBS].sort((a,b)=>(R(a).days_to_zero??-1)-(R(b).days_to_zero??-1)).forEach(k=>{
+    const r=R(k), row=h("tr"); if(dim(k)) row.className="dim";
+    row.appendChild(h("td",null,S(k).name));
+    row.appendChild(h("td",null,r.days_to_zero==null?"—":String(r.days_to_zero)));
+    row.appendChild(h("td",null,r.days_to_zero==null?"—":(100*r.days_to_zero/r.active_days).toFixed(1)+"%"));
+    row.appendChild(h("td",null,String(r.active_days)));
+    row.appendChild(h("td",null,r.top1_share==null?"—":pc(r.top1_share)));
+    row.appendChild(h("td",null,r.top5_share==null?"—":pc(r.top5_share)));
+    row.appendChild(h("td",null,r.trips_to_zero==null?"—":r.trips_to_zero.toLocaleString("en-US")));
+    row.appendChild(h("td",null,r.n_trips.toLocaleString("en-US")));
+    row.appendChild(h("td",null,pc(r.pos_trip_frac)));
+    tb.appendChild(row);
+  });
+  t.appendChild(tb);
+}
+
+/* =================== 02 coin flip =================== */
+function renderCoinflip(){
+  const grid=document.getElementById("cfGrid"); grid.innerHTML="";
+  SUBS.forEach(k=>{
+    const mc=S(k).rungs.mid.mc_a, hist=S(k).rungs.mid.hist_a, obs=S(k).rungs.mid.sharpe;
+    const box=h("div",{class:"sm"+(dim(k)?" dim":"")});
+    const t=h("h5"); t.appendChild(h("span",{class:"bar",style:"background:"+col(k)}));
+    t.appendChild(h("span",null,S(k).name));
+    t.appendChild(chip(V(k).coinflip));
+    box.appendChild(t);
+    const W=220,H=96,m={t:8,r:8,b:18,l:8};
+    const iw=W-m.l-m.r, ih=H-m.t-m.b;
+    const e=hist.e, c=hist.c;
+    const lo=Math.min(e[0],obs)-0.25, hi=Math.max(e[e.length-1],obs)+0.35;
+    const mx=Math.max(...c);
+    const X=v=>m.l+((v-lo)/(hi-lo))*iw;
+    const svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img",
+      "aria-label":S(k).name+" coin-flip null histogram, observed Sharpe "+obs.toFixed(2)});
+    c.forEach((n,i)=>{
+      if(!n) return;
+      const x0=X(e[i]), x1=X(e[i+1]);
+      const hgt=(n/mx)*ih;
+      svg.appendChild(el("rect",{x:x0,y:m.t+ih-hgt,width:Math.max(0.8,x1-x0-0.6),height:hgt,
+        fill:"var(--ink-3)",opacity:.42}));
+    });
+    [["q99",mc.q99,".55"],["q999",mc.q999,".85"]].forEach(q=>{
+      svg.appendChild(el("line",{x1:X(q[1]),x2:X(q[1]),y1:m.t+2,y2:m.t+ih,
+        stroke:"var(--ink-3)","stroke-width":1,"stroke-dasharray":"2 2",opacity:q[2]}));
+    });
+    svg.appendChild(el("line",{x1:m.l,x2:m.l+iw,y1:m.t+ih,y2:m.t+ih,class:"axis-line"}));
+    svg.appendChild(el("line",{x1:X(obs),x2:X(obs),y1:m.t-2,y2:m.t+ih+4,stroke:col(k),"stroke-width":2.5}));
+    svg.appendChild(el("circle",{cx:X(obs),cy:m.t-2,r:4,fill:col(k),stroke:"var(--panel-2)","stroke-width":1.5}));
+    svg.appendChild(el("text",{x:X(mc.sharpe_null_mean),y:H-5,class:"tick","text-anchor":"middle"},"null 0"));
+    svg.appendChild(el("text",{x:Math.min(X(obs),W-26),y:H-5,class:"tick","text-anchor":"middle",
+      fill:col(k)},obs.toFixed(2)));
+    box.appendChild(svg);
+    const kv=h("div",{class:"kv"});
+    kv.innerHTML="<span>z <b>"+mc.sharpe_z.toFixed(1)+"</b></span><span>p <b>"+
+      (mc.sharpe_p_value===0?"&lt;0.0001":mc.sharpe_p_value.toFixed(4))+
+      "</b></span><span>best of 10k <b>"+mc.sharpe_null_max.toFixed(2)+"</b></span>";
+    box.appendChild(kv);
+    const seed=S(k).seed;
+    const kv2=h("div",{class:"kv"});
+    kv2.innerHTML="<span>beats best of 10k across 5 seeds <b>"+seedWord(seed.beats_max)+"</b></span>";
+    box.appendChild(kv2);
+    grid.appendChild(box);
+  });
+
+  // z bar chart
+  const host=document.getElementById("cfZHost"); host.innerHTML="";
+  const W=1080,H=210,m={t:14,r:120,b:34,l:130};
+  const iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const order=[...SUBS].sort((a,b)=>S(b).rungs.mid.mc_a.sharpe_z-S(a).rungs.mid.mc_a.sharpe_z);
+  const zmax=Math.max(...SUBS.map(k=>S(k).rungs.mid.mc_a.sharpe_z))*1.08;
+  const X=v=>m.l+(v/zmax)*iw;
+  const bh=ih/order.length, bar=Math.min(16,bh-8);
+  const svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"z-distance from the coin-flip null, by strategy"});
+  niceTicks(0,zmax,6).forEach(v=>{
+    svg.appendChild(el("line",{x1:X(v),x2:X(v),y1:m.t,y2:m.t+ih,class:"grid-line"}));
+    svg.appendChild(el("text",{x:X(v),y:m.t+ih+17,class:"tick","text-anchor":"middle"},v.toFixed(0)));
+  });
+  [[2.5,"suspect floor 2.5"],[4,"keep floor 4.0"]].forEach(t=>{
+    svg.appendChild(el("line",{x1:X(t[0]),x2:X(t[0]),y1:m.t-4,y2:m.t+ih,class:"thresh-line"}));
+    svg.appendChild(el("text",{x:X(t[0]),y:m.t-6,class:"tick","text-anchor":"middle",fill:"var(--crit)"},t[1]));
+  });
+  const tip=tipBox(host);
+  order.forEach((k,i)=>{
+    const z=S(k).rungs.mid.mc_a.sharpe_z;
+    const y=m.t+i*bh+(bh-bar)/2;
+    const g=el("g",{class:dim(k)?"faded":""});
+    g.appendChild(el("rect",{x:m.l,y,width:Math.max(2,X(z)-m.l),height:bar,rx:4,fill:col(k)}));
+    g.appendChild(el("text",{x:m.l-10,y:y+bar/2+4,class:"ser-lab","text-anchor":"end",fill:"var(--ink-2)"},S(k).name));
+    g.appendChild(el("text",{x:X(z)+8,y:y+bar/2+4,class:"tick",fill:"var(--ink)"},z.toFixed(1)+" σ"));
+    g.addEventListener("mousemove",ev=>{
+      const r=host.getBoundingClientRect();
+      const mc=S(k).rungs.mid.mc_a;
+      showTip(tip,host,ev.clientX-r.left,ev.clientY-r.top,
+        '<div class="th">'+S(k).name+'</div>'+
+        '<div class="row"><span class="k">observed Sharpe</span><span class="v">'+f2(S(k).rungs.mid.sharpe)+'</span></div>'+
+        '<div class="row"><span class="k">null mean ± sd</span><span class="v">'+f2(mc.sharpe_null_mean)+' ± '+f2(mc.sharpe_null_sd)+'</span></div>'+
+        '<div class="row"><span class="k">null 99.9th pct</span><span class="v">'+f2(mc.q999)+'</span></div>'+
+        '<div class="row"><span class="k">best of 10,000</span><span class="v">'+f2(mc.sharpe_null_max)+'</span></div>'+
+        '<div class="row"><span class="k">z-distance</span><span class="v">'+f1(mc.sharpe_z)+'</span></div>');
+    });
+    g.addEventListener("mouseleave",()=>tip.style.opacity=0);
+    svg.appendChild(g);
+  });
+  svg.appendChild(el("text",{x:m.l,y:H-4,class:"axis-title"},"standard deviations above the coin-flip mean · Null A at mid"));
+  host.appendChild(svg);
+
+  const flips=SUBS.filter(seedFlips);
+  const losers=SUBS.filter(k=>S(k).rungs.cross_fee.pnl<=0).map(k=>S(k).name);
+  document.getElementById("cfCap").innerHTML =
+    "Read at mid, the coin-flip crowd averages a Sharpe of zero, so the distance is pure direction skill. "+
+    "The three at the bottom sit close enough to the crowd that the <i>best of 10,000</i> comparison "+
+    "changes answer when the random seed changes"+(flips.length?" — "+flips.map(k=>S(k).name).join(" and ")+
+    (flips.length>1?" both flip":" flips")+" across five seeds":"")+
+    ", which is why the verdict is driven by z-distance and the 99.9th percentile instead."+
+    (losers.length? " <b>Passing this test is necessary, not sufficient:</b> "+losers.join(", ")+
+      " separates itself cleanly from the coin flip and still loses "+
+      fmtE(Math.abs(S(SUBS.find(k=>S(k).rungs.cross_fee.pnl<=0)).rungs.cross_fee.pnl))+
+      " once the fee and the spread are charged. A real signal that cannot pay for its own execution is still a losing book." : "");
+
+  // table
+  const t=document.getElementById("cfTable"); t.innerHTML="";
+  const cols=["Strategy","Basis","Observed Sharpe","Null mean","Null SD","Null 99th","Null 99.9th",
+              "Best of 10,000","z","p","Null B p","Null B 99.9th"];
+  const tr=h("tr"); cols.forEach(c=>tr.appendChild(h("th",null,c)));
+  t.appendChild(h("thead")).appendChild(tr);
+  const tb=h("tbody");
+  SUBS.forEach(k=>{
+    [["mid",S(k).rungs.mid],[RUNG_SHORT[rung],R(k)]].forEach((pair,idx)=>{
+      if(idx===1 && rung==="mid") return;
+      const rr=pair[1], a=rr.mc_a, b=rr.mc_b, row=h("tr"); if(dim(k)) row.className="dim";
+      row.appendChild(h("td",null,idx?"":S(k).name));
+      row.appendChild(h("td",null,pair[0]));
+      row.appendChild(h("td",null,f2(rr.sharpe)));
+      row.appendChild(h("td",null,f2(a.sharpe_null_mean)));
+      row.appendChild(h("td",null,f2(a.sharpe_null_sd)));
+      row.appendChild(h("td",null,f2(a.q99)));
+      row.appendChild(h("td",null,f2(a.q999)));
+      row.appendChild(h("td",null,f2(a.sharpe_null_max)));
+      row.appendChild(h("td",null,f1(a.sharpe_z)));
+      row.appendChild(h("td",null,a.sharpe_p_value===0?"<0.0001":a.sharpe_p_value.toFixed(4)));
+      row.appendChild(h("td",null,b.sharpe_p_value===0?"<0.0001":b.sharpe_p_value.toFixed(4)));
+      row.appendChild(h("td",null,f2(b.q999)));
+      tb.appendChild(row);
+    });
+  });
+  t.appendChild(tb);
+}
+
+/* =================== 03 bootstrap =================== */
+function renderBoot(){
+  const host=document.getElementById("bootHost"); host.innerHTML="";
+  const isSh = bootStat==="sharpe";
+  const rows=SUBS.map(k=>{
+    const b=R(k).boot;
+    return isSh
+      ? {k, pt:R(k).sharpe, lo:Math.min(b.ci[0],b.blk_ci[0]), hi:Math.max(b.ci[1],b.blk_ci[1]),
+         lo2:b.ci[0], hi2:b.ci[1], t:b.blk_t}
+      : {k, pt:R(k).sortino, lo:b.so_ci[0], hi:b.so_ci[1], lo2:b.so_ci[0], hi2:b.so_ci[1], t:b.so_t};
+  }).sort((a,b)=>b.lo-a.lo);
+
+  const CAP = isSh ? null : 60;
+  let lo=Math.min(...rows.map(r=>r.lo), 0), hi=Math.max(...rows.map(r=>Math.min(r.hi, CAP??1e9)), 1.2);
+  const pad=(hi-lo)*0.06; lo-=pad; hi+=pad;
+  const W=1080,H=300,m={t:24,r:96,b:40,l:132};
+  const iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const X=v=>m.l+((Math.min(v, CAP??1e9)-lo)/(hi-lo))*iw;
+  const bh=ih/rows.length;
+  const svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img",
+    "aria-label":"95% bootstrap intervals for annualised "+bootStat+" by strategy"});
+  niceTicks(lo,hi,7).forEach(v=>{
+    svg.appendChild(el("line",{x1:X(v),x2:X(v),y1:m.t,y2:m.t+ih,class:v===0?"zero-line":"grid-line"}));
+    svg.appendChild(el("text",{x:X(v),y:m.t+ih+18,class:"tick","text-anchor":"middle"},v.toFixed(0)));
+  });
+  if(isSh && hi>1 && lo<1){
+    svg.appendChild(el("line",{x1:X(1),x2:X(1),y1:m.t-6,y2:m.t+ih,class:"thresh-line"}));
+    svg.appendChild(el("text",{x:X(1),y:m.t-9,class:"tick","text-anchor":"middle",fill:"var(--crit)"},"keep floor 1.0"));
+  }
+  const tip=tipBox(host);
+  rows.forEach((r,i)=>{
+    const y=m.t+i*bh+bh/2;
+    const g=el("g",{class:dim(r.k)?"faded":""});
+    const barH=8;
+    g.appendChild(el("rect",{x:X(r.lo),y:y-barH/2,width:Math.max(2,X(r.hi)-X(r.lo)),height:barH,rx:4,
+      fill:col(r.k),opacity:.3}));
+    g.appendChild(el("rect",{x:X(r.lo2),y:y-barH/2,width:Math.max(2,X(r.hi2)-X(r.lo2)),height:barH,rx:4,
+      fill:col(r.k),opacity:.62}));
+    g.appendChild(el("circle",{cx:X(r.pt),cy:y,r:5,fill:col(r.k),stroke:"var(--panel)","stroke-width":2}));
+    g.appendChild(el("text",{x:m.l-10,y:y+4,class:"ser-lab","text-anchor":"end",fill:"var(--ink-2)"},S(r.k).name));
+    const clipped = CAP!=null && r.hi>CAP;
+    g.appendChild(el("text",{x:Math.min(X(r.hi)+9,W-m.r+30),y:y+4,class:"tick",fill:"var(--ink)"},
+      f2(r.pt)+(clipped?"  ↦":"")));
+    g.appendChild(el("rect",{x:m.l,y:y-bh/2,width:iw,height:bh,class:"hit"}));
+    g.addEventListener("mousemove",ev=>{
+      const bb=host.getBoundingClientRect(); const b=R(r.k).boot;
+      showTip(tip,host,ev.clientX-bb.left,ev.clientY-bb.top,
+        '<div class="th">'+S(r.k).name+' · '+RUNG_SHORT[rung]+'</div>'+
+        '<div class="row"><span class="k">point estimate</span><span class="v">'+f2(r.pt)+'</span></div>'+
+        '<div class="row"><span class="k">95% iid</span><span class="v">'+f2(r.lo2)+' … '+f2(r.hi2)+'</span></div>'+
+        (isSh?'<div class="row"><span class="k">95% block ('+b.blk_len+'d)</span><span class="v">'+f2(b.blk_ci[0])+' … '+f2(b.blk_ci[1])+'</span></div>':'')+
+        '<div class="row"><span class="k">t</span><span class="v">'+f2(r.t)+'</span></div>'+
+        (isSh?'<div class="row"><span class="k">Newey–West t</span><span class="v">'+f2(b.nw_t)+'</span></div>':''));
+    });
+    g.addEventListener("mouseleave",()=>tip.style.opacity=0);
+    svg.appendChild(g);
+  });
+  svg.appendChild(el("text",{x:m.l,y:H-6,class:"axis-title"},
+    "annualised "+(isSh?"Sharpe":"Sortino")+" · basis "+RUNG_SHORT[rung]+
+    (CAP!=null?" · axis clipped at "+CAP+", ↦ marks intervals running past it":"")));
+  host.appendChild(svg);
+
+  const lg=document.getElementById("bootLegend"); lg.innerHTML="";
+  [["opacity:.62","95% interval, iid resample"],["opacity:.3","widened by the 8-day block resample"]].forEach(x=>{
+    const s=h("span"); s.appendChild(h("i",{class:"sq",style:"background:var(--ink-2);"+x[0]}));
+    s.appendChild(h("span",null,x[1])); lg.appendChild(s);
+  });
+  const s=h("span"); s.appendChild(h("i",{class:"sq",style:"background:var(--ink-2);border-radius:50%"}));
+  s.appendChild(h("span",null,"point estimate")); lg.appendChild(s);
+
+  document.getElementById("bootTitle").textContent =
+    "95% bootstrap interval, annualised "+(isSh?"Sharpe":"Sortino");
+  document.getElementById("bootNote").textContent =
+    "10,000 resamples · iid and 8-day block · basis "+RUNG_SHORT[rung];
+
+  const zeroCross=rows.filter(r=>r.lo<=0).map(r=>S(r.k).name);
+  document.getElementById("bootCap").innerHTML = isSh
+    ? "The interval, not the point estimate, is the claim. "+
+      (zeroCross.length? "On "+RUNG_SHORT[rung]+" the interval contains zero for <b>"+zeroCross.join(", ")+
+        "</b> — on this sample those Sharpes are not distinguishable from no edge at all."
+        : "On "+RUNG_SHORT[rung]+" every interval clears zero.")+
+      " Block resampling barely moves the endpoints, so day-to-day autocorrelation is not what is holding these numbers up."
+    : "Sortino follows the submitters' own definition — mean ÷ SD of <i>negative</i> days only. When a strategy has "+
+      "very few losing days that denominator is estimated from a handful of observations, so the interval explodes: "+
+      "wide Sortino intervals here are a small-sample artefact of the definition, which is why Sharpe carries the verdict.";
+
+  const t=document.getElementById("bootTable"); t.innerHTML="";
+  const cols=["Strategy","Sharpe","95% iid","95% block","t (block)","Newey–West t","Sortino","Sortino 95%","Sortino t"];
+  const tr=h("tr"); cols.forEach(c=>tr.appendChild(h("th",null,c)));
+  t.appendChild(h("thead")).appendChild(tr);
+  const tb=h("tbody");
+  SUBS.forEach(k=>{
+    const b=R(k).boot, row=h("tr"); if(dim(k)) row.className="dim";
+    row.appendChild(h("td",null,S(k).name));
+    row.appendChild(h("td",null,f2(R(k).sharpe)));
+    row.appendChild(h("td",null,f2(b.ci[0])+" … "+f2(b.ci[1])));
+    row.appendChild(h("td",null,f2(b.blk_ci[0])+" … "+f2(b.blk_ci[1])));
+    row.appendChild(h("td",null,f2(b.blk_t)));
+    row.appendChild(h("td",null,f2(b.nw_t)));
+    row.appendChild(h("td",null,f2(R(k).sortino)));
+    row.appendChild(h("td",null,f2(b.so_ci[0])+" … "+f2(b.so_ci[1])));
+    row.appendChild(h("td",null,f2(b.so_t)));
+    tb.appendChild(row);
+  });
+  t.appendChild(tb);
+}
+
+/* =================== 04 deflated Sharpe =================== */
+function renderDsr(){
+  const host=document.getElementById("dsrHost"); host.innerHTML="";
+  const W=1080,H=400,m={t:20,r:132,b:52,l:56};
+  const iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const key = dsrVar==="analytic"?"curve_analytic":"curve_search";
+  const brkKey = dsrVar==="analytic"?"break_analytic":"break_search";
+  const xs = R(SUBS[0]).dsr[key].map(p=>p[0]);
+  const x0=Math.log10(1), x1=Math.log10(xs[xs.length-1]);
+  const X=v=>m.l+((Math.log10(Math.max(v,1))-x0)/(x1-x0))*iw;
+  const Y=v=>m.t+ih-v*ih;
+  const svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img",
+    "aria-label":"Deflated Sharpe against number of trials searched, one line per strategy"});
+  [0,0.25,0.5,0.75,1].forEach(v=>{
+    svg.appendChild(el("line",{x1:m.l,x2:m.l+iw,y1:Y(v),y2:Y(v),class:"grid-line"}));
+    svg.appendChild(el("text",{x:m.l-9,y:Y(v)+3.5,class:"tick","text-anchor":"end"},v.toFixed(2)));
+  });
+  [1,3,10,30,100,371,1000,10000].forEach(v=>{
+    svg.appendChild(el("line",{x1:X(v),x2:X(v),y1:m.t,y2:m.t+ih,class:"grid-line"}));
+    svg.appendChild(el("text",{x:X(v),y:m.t+ih+18,class:"tick","text-anchor":"middle"},String(v)));
+  });
+  svg.appendChild(el("line",{x1:m.l,x2:m.l+iw,y1:Y(0.95),y2:Y(0.95),class:"thresh-line"}));
+  svg.appendChild(el("text",{x:m.l+6,y:Y(0.95)-7,class:"tick",fill:"var(--crit)"},"0.95 — survives the search above this line"));
+  svg.appendChild(el("line",{x1:m.l,x2:m.l+iw,y1:m.t+ih,y2:m.t+ih,class:"axis-line"}));
+  svg.appendChild(el("text",{x:m.l,y:H-8,class:"axis-title"},"number of trials searched (log scale)"));
+  svg.appendChild(el("text",{x:m.l-46,y:m.t-6,class:"axis-title"},"DSR"));
+
+  const labels=[];
+  SUBS.forEach(k=>{
+    const c=R(k).dsr[key];
+    const d=c.map((p,i)=>(i?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[1]).toFixed(1)).join(" ");
+    svg.appendChild(el("path",{d,class:"ser-line"+(dim(k)?" faded":""),stroke:col(k)}));
+    // declared-trials marker
+    const N=S(k).declared_trials;
+    let dv=null;
+    for(let i=0;i<c.length;i++){ if(c[i][0]>=N){ dv=c[i][1]; break; } }
+    if(dv==null) dv=c[c.length-1][1];
+    svg.appendChild(el("circle",{cx:X(N),cy:Y(dv),r:4.5,fill:"var(--panel)",stroke:col(k),
+      "stroke-width":2.2,class:dim(k)?"faded":""}));
+    const last=c[c.length-1];
+    labels.push({k,y:Y(last[1]),brk:R(k).dsr[brkKey],N});
+  });
+  stackLabels(labels, m.t+6, m.t+ih, 13.5).forEach(L=>{
+    svg.appendChild(el("text",{x:m.l+iw+8,y:L.ly+3.5,
+      class:"ser-lab"+(dim(L.k)?" faded":""),fill:col(L.k)},
+      S(L.k).name+"  "+(L.brk==null?"never":"@"+L.brk)));
+  });
+
+  const tip=tipBox(host);
+  const cross=el("line",{x1:0,x2:0,y1:m.t,y2:m.t+ih,class:"axis-line",opacity:0});
+  svg.appendChild(cross);
+  const hit=el("rect",{x:m.l,y:m.t,width:iw,height:ih,class:"hit"});
+  svg.appendChild(hit);
+  hit.addEventListener("mousemove",ev=>{
+    const r=svg.getBoundingClientRect();
+    const px=(ev.clientX-r.left)*(W/r.width);
+    const lv=x0+((px-m.l)/iw)*(x1-x0);
+    const nv=Math.pow(10,lv);
+    cross.setAttribute("x1",X(nv)); cross.setAttribute("x2",X(nv)); cross.setAttribute("opacity",".6");
+    let rows="";
+    SUBS.forEach(k=>{
+      const c=R(k).dsr[key]; let best=c[0],bd=1e9;
+      c.forEach(p=>{const d=Math.abs(Math.log10(p[0])-lv); if(d<bd){bd=d;best=p;}});
+      rows+='<div class="row"><span class="k"><i style="background:'+col(k)+'"></i>'+S(k).name+
+        '</span><span class="v">'+best[1].toFixed(3)+'</span></div>';
+    });
+    showTip(tip,host,(ev.clientX-r.left)*(host.clientWidth/r.width),
+      (ev.clientY-r.top)*(host.clientWidth/r.width),
+      '<div class="th">at ~'+Math.round(nv).toLocaleString("en-US")+' trials</div>'+rows);
+  });
+  hit.addEventListener("mouseleave",()=>{tip.style.opacity=0;cross.setAttribute("opacity",0);});
+  host.appendChild(svg);
+
+  const lg=document.getElementById("dsrLegend"); lg.innerHTML="";
+  SUBS.forEach(k=>{
+    const s=h("span",{style:dim(k)?"opacity:.4":""});
+    s.appendChild(h("i",{style:"background:"+col(k)}));
+    s.appendChild(h("span",null,S(k).name+" (declares "+S(k).declared_trials+")"));
+    lg.appendChild(s);
+  });
+  const s=h("span"); s.appendChild(h("i",{class:"sq",style:"background:transparent;border:2px solid var(--ink-2);border-radius:50%"}));
+  s.appendChild(h("span",null,"DSR at the declared trial count")); lg.appendChild(s);
+
+  document.getElementById("dsrNote").textContent =
+    (dsrVar==="analytic"?"Analytic trial variance (generous)":"Cross-sectional trial variance v="+D.v_search.toFixed(5)+" (harsh)")+
+    " · basis "+RUNG_SHORT[rung]+" · label shows the breakeven trial count";
+
+  const dead=SUBS.filter(k=>{const b=R(k).dsr[brkKey]; return b!=null && b<S(k).declared_trials;});
+  const at371 = k => {
+    const c=S(k).rungs.mid.dsr.curve_analytic, p=c.find(x=>x[0]===371);
+    return p ? p[1].toFixed(3) : "—";
+  };
+  const subj = SUBJECT || null;
+  document.getElementById("dsrCap").innerHTML =
+    "Each line is one strategy's probability of a genuinely positive Sharpe as the assumed search size grows; the "+
+    "open circle marks the trial count it declared. "+
+    (dead.length? "<b>"+dead.map(k=>S(k).name).join(", ")+"</b> "+(dead.length>1?"are":"is")+
+      " already below 0.95 at the trial count "+(dead.length>1?"they declare":"it declares")+" — no assumption about "+
+      "hidden search is needed to reject "+(dead.length>1?"them":"it")+"." :
+      "No strategy on this page is below 0.95 at its declared trial count on this basis.")+
+    (subj ? " "+S(subj).name+" declares <b>"+S(subj).declared_trials+"</b> trials; if the real search were "+
+      "371 wide — the figure BLACKBOX's <span class=\"mono\">model_id</span> hints at — its deflated Sharpe at mid "+
+      "would be "+at371(subj)+"."
+          : " BLACKBOX is the case worth arguing about: it declares <b>3</b> trials but names "+
+      "<span class=\"mono\">model_id: 371</span>, and at 371 trials its DSR at mid is "+
+      (SUBS.indexOf("blackbox")>=0 ? at371("blackbox") : "—")+".");
+
+  const t=document.getElementById("dsrTable"); t.innerHTML="";
+  const cols=["Strategy","Sharpe","Skew","Kurtosis","Declared trials","DSR at declared (analytic)",
+              "Breakeven trials (analytic)","DSR at declared (cross-sec.)","Breakeven (cross-sec.)","E[max SR] at declared"];
+  const tr=h("tr"); cols.forEach(c=>tr.appendChild(h("th",null,c)));
+  t.appendChild(h("thead")).appendChild(tr);
+  const tb=h("tbody");
+  SUBS.forEach(k=>{
+    const d=R(k).dsr, row=h("tr"); if(dim(k)) row.className="dim";
+    row.appendChild(h("td",null,S(k).name));
+    row.appendChild(h("td",null,f2(d.sr_ann)));
+    row.appendChild(h("td",null,f2(d.skew)));
+    row.appendChild(h("td",null,f1(d.kurt)));
+    row.appendChild(h("td",null,String(d.declared)));
+    row.appendChild(h("td",null,d.at_declared_analytic.toFixed(4)));
+    row.appendChild(h("td",null,d.break_analytic==null?"never":String(d.break_analytic)));
+    row.appendChild(h("td",null,d.at_declared_search.toFixed(4)));
+    row.appendChild(h("td",null,d.break_search==null?"never":String(d.break_search)));
+    row.appendChild(h("td",null,f2(d.sr0_ann_analytic)));
+    tb.appendChild(row);
+  });
+  t.appendChild(tb);
+}
+
+/* =================== 05 baselines =================== */
+const BKEYS=[["strategy","Strategy","var(--accent)"],
+             ["always_long","Always long, same trades","var(--ink-2)"],
+             ["always_short","Always short, same trades","var(--ink-3)"],
+             ["matched_passive","Matched passive, whole market","var(--s4)"]];
+function renderBase(){
+  const host=document.getElementById("baseHost"); host.innerHTML="";
+  const W=1080, rowH=74, m={t:30,r:60,b:38,l:150};
+  const H=m.t+SUBS.length*rowH+m.b;
+  const iw=W-m.l-m.r;
+  let lo=0,hi=0;
+  SUBS.forEach(k=>BKEYS.forEach(b=>{const v=R(k).base[b[0]].sharpe; if(v<lo)lo=v; if(v>hi)hi=v;}));
+  const pad=(hi-lo)*.06; lo-=pad; hi+=pad;
+  const X=v=>m.l+((v-lo)/(hi-lo))*iw;
+  const svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img",
+    "aria-label":"Strategy Sharpe against always-long, always-short and matched passive baselines"});
+  niceTicks(lo,hi,8).forEach(v=>{
+    svg.appendChild(el("line",{x1:X(v),x2:X(v),y1:m.t-6,y2:H-m.b,class:v===0?"zero-line":"grid-line"}));
+    svg.appendChild(el("text",{x:X(v),y:H-m.b+17,class:"tick","text-anchor":"middle"},v.toFixed(0)));
+  });
+  const tip=tipBox(host);
+  SUBS.forEach((k,i)=>{
+    const y0=m.t+i*rowH;
+    const g=el("g",{class:dim(k)?"faded":""});
+    g.appendChild(el("text",{x:m.l-12,y:y0+rowH/2-2,class:"ser-lab","text-anchor":"end",fill:"var(--ink-2)"},S(k).name));
+    g.appendChild(el("text",{x:m.l-12,y:y0+rowH/2+12,class:"tick","text-anchor":"end"},
+      "hold "+S(k).hold_med+"m · "+pc(S(k).long_frac)+" long"));
+    const bar=11, gap=3;
+    BKEYS.forEach((b,j)=>{
+      const v=R(k).base[b[0]].sharpe;
+      const y=y0+10+j*(bar+gap);
+      const x=Math.min(X(0),X(v)), w=Math.max(2,Math.abs(X(v)-X(0)));
+      g.appendChild(el("rect",{x,y,width:w,height:bar,rx:3.5,
+        fill:j===0?col(k):"var(--ink-3)", opacity:j===0?1:(j===1?.62:(j===2?.34:.5)),
+        stroke:"var(--panel)","stroke-width":1}));
+      if(j===3) g.appendChild(el("rect",{x,y,width:w,height:bar,rx:3.5,fill:"none",
+        stroke:"var(--s4)","stroke-width":1.6}));
+      g.appendChild(el("text",{x:(v>=0?x+w+7:x-7),y:y+bar-2,class:"tick",
+        "text-anchor":v>=0?"start":"end"},f2(v)));
+    });
+    g.appendChild(el("rect",{x:m.l,y:y0,width:iw,height:rowH,class:"hit"}));
+    g.addEventListener("mousemove",ev=>{
+      const bb=host.getBoundingClientRect(); const r=R(k);
+      let rows="";
+      BKEYS.forEach(b=>{rows+='<div class="row"><span class="k">'+b[1]+'</span><span class="v">'+
+        f2(r.base[b[0]].sharpe)+' · '+fmtE(r.base[b[0]].pnl)+'</span></div>';});
+      rows+='<div class="row"><span class="k">Full-window buy &amp; hold</span><span class="v">'+
+        f2(r.base.market_bh_full.sharpe)+' · '+fmtE(r.base.market_bh_full.pnl)+'</span></div>';
+      rows+='<div class="row"><span class="k">edge / MWh</span><span class="v">'+r.edge.toFixed(3)+'</span></div>';
+      showTip(tip,host,ev.clientX-bb.left,ev.clientY-bb.top,
+        '<div class="th">'+S(k).name+' · '+RUNG_SHORT[rung]+'</div>'+rows);
+    });
+    g.addEventListener("mouseleave",()=>tip.style.opacity=0);
+    svg.appendChild(g);
+    if(i) svg.appendChild(el("line",{x1:m.l-140,x2:m.l+iw,y1:y0-4,y2:y0-4,class:"grid-line"}));
+  });
+  svg.appendChild(el("text",{x:m.l,y:H-4,class:"axis-title"},"annualised Sharpe · basis "+RUNG_SHORT[rung]));
+  host.appendChild(svg);
+
+  const lg=document.getElementById("baseLegend"); lg.innerHTML="";
+  [["Strategy","background:var(--ink-2)"],["Always long, same trades","background:var(--ink-3);opacity:.62"],
+   ["Always short, same trades","background:var(--ink-3);opacity:.34"],
+   ["Matched passive, whole market","background:var(--ink-3);opacity:.5;box-shadow:inset 0 0 0 1.6px var(--s4)"]]
+   .forEach(x=>{const s=h("span"); s.appendChild(h("i",{class:"sq",style:x[1]}));
+     s.appendChild(h("span",null,x[0])); lg.appendChild(s);});
+
+  const bb=SUBS.filter(k=>R(k).base.always_long.sharpe>R(k).base.strategy.sharpe+0.05).map(k=>S(k).name);
+  const same=SUBS.filter(k=>S(k).long_frac>=0.999).map(k=>S(k).name);
+  document.getElementById("baseCap").innerHTML =
+    "Always-long and always-short use the strategy's <i>own</i> trades with the direction forced, so the difference "+
+    "between the top bar and the second is the entire value of the direction call. "+
+    (same.length? "For <b>"+same.join(" and ")+"</b> the two bars are identical because "+
+      (same.length>1?"they are":"it is")+" 100% long already — the only thing left to test is whether "+
+      (same.length>1?"their":"its")+" product and timing selection beats holding everything. " : "")+
+    (bb.length? "<b>"+bb.join(", ")+"</b> "+(bb.length>1?"are":"is")+" beaten outright by forcing "+
+      (bb.length>1?"their":"its")+" own trades long on this basis." : "No strategy is beaten by forcing its own trades long on this basis.");
+
+  // ratio dot plot
+  const rh=document.getElementById("ratioHost"); rh.innerHTML="";
+  const W2=1080,H2=180,m2={t:26,r:64,b:38,l:150};
+  const iw2=W2-m2.l-m2.r, ih2=H2-m2.t-m2.b;
+  const rmax=Math.max(...SUBS.map(k=>S(k).edge_ratio_mid))*1.1;
+  const X2=v=>m2.l+(v/rmax)*iw2;
+  const svg2=el("svg",{viewBox:"0 0 "+W2+" "+H2,role:"img","aria-label":"Breadth-neutral edge ratio by strategy"});
+  niceTicks(0,rmax,8).forEach(v=>{
+    svg2.appendChild(el("line",{x1:X2(v),x2:X2(v),y1:m2.t-6,y2:m2.t+ih2,class:"grid-line"}));
+    svg2.appendChild(el("text",{x:X2(v),y:m2.t+ih2+17,class:"tick","text-anchor":"middle"},v.toFixed(0)+"×"));
+  });
+  [[1,"fail below 1×"],[3,"keep above 3×"]].forEach(t=>{
+    svg2.appendChild(el("line",{x1:X2(t[0]),x2:X2(t[0]),y1:m2.t-6,y2:m2.t+ih2,class:"thresh-line"}));
+    svg2.appendChild(el("text",{x:X2(t[0]),y:m2.t-10,class:"tick","text-anchor":"middle",fill:"var(--crit)"},t[1]));
+  });
+  const ord=[...SUBS].sort((a,b)=>S(b).edge_ratio_mid-S(a).edge_ratio_mid);
+  const step=ih2/ord.length;
+  const tip2=tipBox(rh);
+  ord.forEach((k,i)=>{
+    const y=m2.t+i*step+step/2, v=S(k).edge_ratio_mid;
+    const g=el("g",{class:dim(k)?"faded":""});
+    g.appendChild(el("line",{x1:X2(0),x2:X2(v),y1:y,y2:y,stroke:col(k),"stroke-width":2,opacity:.4}));
+    g.appendChild(el("circle",{cx:X2(v),cy:y,r:6,fill:col(k),stroke:"var(--panel)","stroke-width":1.6}));
+    g.appendChild(el("text",{x:m2.l-12,y:y+4,class:"ser-lab","text-anchor":"end",fill:"var(--ink-2)"},S(k).name));
+    g.appendChild(el("text",{x:X2(v)+11,y:y+4,class:"tick",fill:"var(--ink)"},v.toFixed(2)+"×"));
+    g.appendChild(el("rect",{x:m2.l,y:y-step/2,width:iw2,height:step,class:"hit"}));
+    g.addEventListener("mousemove",ev=>{
+      const bb=rh.getBoundingClientRect();
+      showTip(tip2,rh,ev.clientX-bb.left,ev.clientY-bb.top,
+        '<div class="th">'+S(k).name+'</div>'+
+        '<div class="row"><span class="k">edge / MWh</span><span class="v">'+S(k).edge_mid.toFixed(3)+'</span></div>'+
+        '<div class="row"><span class="k">market, same window</span><span class="v">'+S(k).passive_edge_mid.toFixed(3)+'</span></div>'+
+        '<div class="row"><span class="k">products / day</span><span class="v">'+S(k).prods_day.toFixed(2)+'</span></div>'+
+        '<div class="row"><span class="k">breadth against it</span><span class="v">'+S(k).breadth.toFixed(1)+'×</span></div>');
+    });
+    g.addEventListener("mouseleave",()=>tip2.style.opacity=0);
+    svg2.appendChild(g);
+  });
+  svg2.appendChild(el("text",{x:m2.l,y:H2-4,class:"axis-title"},
+    "edge per MWh ÷ the market's per-MWh return over the same clock window · priced at mid"));
+  rh.appendChild(svg2);
+
+  const t=document.getElementById("baseTable"); t.innerHTML="";
+  const cols=["Strategy","Strategy Sharpe","Always long","Always short","Matched passive",
+              "Full buy & hold","Edge €/MWh","Market same window","Edge ratio (mid)","Products/day","Breadth"];
+  const tr=h("tr"); cols.forEach(c=>tr.appendChild(h("th",null,c)));
+  t.appendChild(h("thead")).appendChild(tr);
+  const tb=h("tbody");
+  SUBS.forEach(k=>{
+    const r=R(k), row=h("tr"); if(dim(k)) row.className="dim";
+    row.appendChild(h("td",null,S(k).name));
+    row.appendChild(h("td",null,f2(r.base.strategy.sharpe)));
+    row.appendChild(h("td",null,f2(r.base.always_long.sharpe)));
+    row.appendChild(h("td",null,f2(r.base.always_short.sharpe)));
+    row.appendChild(h("td",null,f2(r.base.matched_passive.sharpe)));
+    row.appendChild(h("td",null,f2(r.base.market_bh_full.sharpe)));
+    row.appendChild(h("td",null,r.edge.toFixed(3)));
+    row.appendChild(h("td",null,r.matched_edge.toFixed(3)));
+    row.appendChild(h("td",null,S(k).edge_ratio_mid.toFixed(2)+"×"));
+    row.appendChild(h("td",null,S(k).prods_day.toFixed(2)));
+    row.appendChild(h("td",null,S(k).breadth.toFixed(1)+"×"));
+    tb.appendChild(row);
+  });
+  t.appendChild(tb);
+}
+
+/* =================== 06 dossiers =================== */
+function readout(k){
+  const r=R(k), v=V(k), s=S(k), d=r.dsr;
+  const bits=[];
+  bits.push("On "+RUNG_SHORT[rung]+" it makes <b>"+fmtE(r.pnl)+"</b> at a Sharpe of <b>"+f2(r.sharpe)+"</b>");
+  if(r.days_to_zero!=null && r.pnl>0)
+    bits.push("deleting its <b>"+r.days_to_zero+"</b> best day"+(r.days_to_zero===1?"":"s")+
+      " ("+(100*r.days_to_zero/r.active_days).toFixed(1)+"% of its active days) erases all of it");
+  else bits.push("there is no P&L to erase on this basis");
+  const b=r.boot, lo=Math.min(b.ci[0],b.blk_ci[0]);
+  bits.push("the 95% bootstrap interval runs <b>"+f2(lo)+" to "+f2(Math.max(b.ci[1],b.blk_ci[1]))+"</b>");
+  bits.push("deflated Sharpe "+(d.break_analytic==null?"never falls through 0.95":
+    "falls through 0.95 at <b>"+d.break_analytic+"</b> trials against the <b>"+d.declared+"</b> declared"));
+  bits.push("and its breadth-neutral edge is <b>"+s.edge_ratio_mid.toFixed(2)+"×</b> the market's");
+  return bits.join("; ")+".";
+}
+function renderDossiers(){
+  const list=document.getElementById("dossierList");
+  const open=new Set([...list.querySelectorAll("details[open]")].map(d=>d.dataset.k));
+  list.innerHTML="";
+  const rank={KEEP:0,SUSPECT:1,FAIL:2};
+  [...SUBS].sort((a,b)=>{
+    if(SUBJECT){ if(a===SUBJECT) return -1; if(b===SUBJECT) return 1; }
+    const d=rank[V(a).overall]-rank[V(b).overall];
+    return d!==0?d:R(b).sharpe-R(a).sharpe;}).forEach(k=>{
+    const s=S(k), r=R(k), v=V(k);
+    const det=h("details",{class:"dos"}); det.dataset.k=k;
+    if(SUBJECT) det.open = (k===SUBJECT) ? (!open.size || open.has(k)) : open.has(k);
+    else if(open.has(k)||focus===k) det.open=true;
+    const sum=h("summary");
+    const id=h("div",{class:"dos-id"});
+    id.appendChild(h("span",{class:"bar",style:"background:"+col(k)}));
+    const box=h("div"); box.appendChild(h("b",null,s.name));
+    box.appendChild(h("small",null,s.class+" · declares "+s.declared_trials+" trials"));
+    id.appendChild(box); sum.appendChild(id);
+    sum.appendChild(chip(v.overall));
+    const mini=h("div",{class:"dos-mini"});
+    [["P&L",fmtE(r.pnl)],["Sharpe",f2(r.sharpe)],["Sortino",f2(r.sortino)],
+     ["Breakeven days",r.days_to_zero==null?"—":String(r.days_to_zero)],
+     ["Edge ratio",s.edge_ratio_mid.toFixed(2)+"×"]].forEach(x=>{
+      const dd=h("div"); dd.appendChild(h("b",null,x[1])); dd.appendChild(h("span",null,x[0])); mini.appendChild(dd);
+    });
+    sum.appendChild(mini);
+    det.appendChild(sum);
+
+    const body=h("div",{class:"dos-body"});
+    const ro=h("p",{class:"readout",html:readout(k)}); body.appendChild(ro);
+    const grid=h("div",{class:"dos-grid"});
+
+    const c1=h("div",{class:"dos-card"});
+    c1.appendChild(h("h6",null,"The five tests on "+RUNG_SHORT[rung]));
+    const vr=h("div",{class:"verdict-row"});
+    TESTS.forEach(t=>{
+      const wrap=h("span",{style:"display:inline-flex;flex-direction:column;gap:3px"});
+      wrap.appendChild(h("span",{style:"font:600 10px/1.2 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)"},t.name));
+      wrap.appendChild(chip(v[t.id]));
+      vr.appendChild(wrap);
+    });
+    c1.appendChild(vr); grid.appendChild(c1);
+
+    const c2=h("div",{class:"dos-card"});
+    c2.appendChild(h("h6",null,"Numbers behind the verdicts"));
+    const kv=h("div",{class:"kvlist"});
+    const b=r.boot;
+    [["Trips / active days",r.n_trips.toLocaleString("en-US")+" / "+r.active_days],
+     ["Median hold",s.hold_med+" min · entry snapshot "+s.entry_slot],
+     ["Long fraction",pc(s.long_frac)],
+     ["Hit rate",pc(r.hit)],
+     ["Max drawdown",fmtE(r.max_dd)],
+     ["Coin-flip z (mid)",f1(s.rungs.mid.mc_a.sharpe_z)+" σ"],
+     ["Best of 10,000 (mid)",f2(s.rungs.mid.mc_a.sharpe_null_max)],
+     ["95% Sharpe (block)",f2(b.blk_ci[0])+" … "+f2(b.blk_ci[1])],
+     ["Newey–West t",f2(b.nw_t)],
+     ["DSR at declared",r.dsr.at_declared_analytic.toFixed(4)],
+     ["Breakeven trials",r.dsr.break_analytic==null?"never":String(r.dsr.break_analytic)],
+     ["Best day / best 5 days",pc(r.top1_share)+" / "+pc(r.top5_share)],
+     ["Unit-clip Sharpe",f2(r.sizing.unitclip_sharpe)],
+     ["Per-trip margin",r.sizing.trip_mean.toFixed(3)+" €/MWh (t "+f2(r.sizing.trip_t)+")"],
+     ["Market share of P&L",pc(s.mvs.market_share)],
+     ["Drift over its hold",s.be_hold.drift.toFixed(3)+" vs "+s.be_hold.friction.toFixed(3)+" friction"]
+    ].forEach(x=>{kv.appendChild(h("span",null,x[0])); kv.appendChild(h("b",null,x[1]));});
+    c2.appendChild(kv); grid.appendChild(c2);
+
+    const c3=h("div",{class:"dos-card"});
+    c3.appendChild(h("h6",null,"Cumulative P&L, "+RUNG_SHORT[rung]));
+    const eq=s.equity[rung];
+    const W=340,H=112,mm={t:8,r:8,b:8,l:8};
+    const lo=Math.min(0,...eq), hi=Math.max(0,...eq);
+    const X=i=>mm.l+(i/(eq.length-1))*(W-mm.l-mm.r);
+    const Y=vv=>mm.t+(H-mm.t-mm.b)-((vv-lo)/((hi-lo)||1))*(H-mm.t-mm.b);
+    const sv=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img",
+      "aria-label":s.name+" cumulative P&L over 546 delivery days, ending "+fmtE(eq[eq.length-1])});
+    sv.appendChild(el("line",{x1:mm.l,x2:W-mm.r,y1:Y(0),y2:Y(0),class:"zero-line"}));
+    sv.appendChild(el("path",{d:eq.map((vv,i)=>(i?"L":"M")+X(i).toFixed(1)+" "+Y(vv).toFixed(1)).join(" "),
+      class:"ser-line",stroke:col(k)}));
+    c3.appendChild(sv);
+    const kv2=h("div",{class:"kvlist",style:"margin-top:8px"});
+    kv2.appendChild(h("span",null,"Claimed P&L (submission)"));
+    kv2.appendChild(h("b",null,fmtE(s.claimed.total_pnl_eur)));
+    kv2.appendChild(h("span",null,"After fee and spread"));
+    kv2.appendChild(h("b",null,fmtE(s.rungs.cross_fee.pnl)));
+    c3.appendChild(kv2);
+    grid.appendChild(c3);
+
+    const c4=h("div",{class:"dos-card"});
+    c4.appendChild(h("h6",null,"What the submission claims"));
+    c4.appendChild(h("p",{style:"font-size:13.5px;color:var(--ink-2);font-style:italic"},"“"+s.note+"”"));
+    grid.appendChild(c4);
+
+    body.appendChild(grid);
+    det.appendChild(body);
+    list.appendChild(det);
+  });
+}
+
+if(SUBJECT) document.body.classList.add("subject-mode");
+
+function renderAll(){
+  SUBS = SUBS_ALL();
+  renderMast();
+  renderMatrix(); renderDecay(); renderCoinflip(); renderBoot(); renderDsr(); renderBase(); renderDossiers();
+}
+renderAll();
+})();
+</script>
+</body>
+</html>
