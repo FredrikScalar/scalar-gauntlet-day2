@@ -226,14 +226,68 @@ def _luck_tests():
 
 
 # ---------------------------------------------------------- Shelf-life
+# Shelf-life verdicts set by hand, overriding the module's own.
+# sunspot: the module reads its decay as stable because Sharpe measures the
+# quality of the days it traded, not whether it kept trading — and its
+# active-month test counts only active months. Sunspot earned EUR 11,140
+# from Apr-Nov 2025 and EUR 1,828 across H1 2026 with four dead months in
+# between; the submitter's own note says "H1 2026 has been flat". The
+# evidence is computed below and attached either way; only the verdict is
+# declared here.
+SHELF_LIFE_OVERRIDE = {"sunspot": "FAIL"}
+
+
+def _late_sample(registry_entry: dict, blotter: pd.DataFrame,
+                 market: dict) -> tuple[float, int, int]:
+    """Share of total P&L earned in the final third, and dead months.
+
+    A stable edge earns about a third of its money in the last third of the
+    window. This is the measure the module's Sharpe-decay test cannot see:
+    a strategy that stops trading keeps a healthy Sharpe on the few days it
+    still takes.
+    """
+    from repricer import reprice_mid, daily_pnl
+
+    b = reprice_mid(blotter, market)
+    w = (str(registry_entry["backtest_window"]["start"]),
+         str(registry_entry["backtest_window"]["end"]))
+    d = daily_pnl(b, "mid_price", window=w)
+    v = d.to_numpy(dtype=float)
+    total, third = v.sum(), max(len(v) // 3, 1)
+    share = float(v[-third:].sum() / total) if total > 0 else float("nan")
+    months = d.groupby(d.index.to_period("M")).sum()
+    return share, int((months == 0).sum()), len(months)
+
+
 def shelf_life_contribute(registry_entry: dict, blotter: pd.DataFrame,
                           market: dict, out_dir: str | Path | None = "reports"
                           ) -> tuple[SectionResult, str]:
-    """Shelf-life already returns a SectionResult; this only adds the page."""
+    """Shelf-life's own result, plus the late-sample measure and the page."""
     import shelf_life as SL
 
     key = str(registry_entry.get("submission", "?"))
     res = SL.shelf_life(registry_entry, blotter, market)
+
+    share, dead, n_months = _late_sample(registry_entry, blotter, market)
+    res.findings.append(Finding(
+        "late_sample_earning_share", round(share, 3), "INFO",
+        f"{share:.0%} of total P&L was earned in the final third of the "
+        f"window (a stable edge earns about a third); {dead} of {n_months} "
+        f"months are entirely flat"))
+
+    override = SHELF_LIFE_OVERRIDE.get(key)
+    if override and override != res.verdict:
+        res.findings.append(Finding(
+            "shelf_life_verdict_override", override, override,
+            f"verdict set by hand to {override}, overriding the module's "
+            f"{res.verdict}: the module's decay test reads Sharpe across "
+            f"active days and cannot see a strategy that stops trading"))
+        res.conditions = [
+            f"Shelf-life: the {override} verdict was set by hand against the "
+            f"module's {res.verdict}. Reconcile the two before funding — "
+            f"either the module gains a late-sample test or this is reverted."
+        ] + list(res.conditions)
+        res.verdict = override
     if not res.conditions and hasattr(SL, "_suggested_conditions"):
         res.conditions = SL._suggested_conditions(res.verdict, res.findings)
 
