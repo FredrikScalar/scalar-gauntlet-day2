@@ -27,12 +27,35 @@ still reads as one document.
 """
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
 import pandas as pd
 
 from report import Finding, SectionResult, findings_table, panel
+
+def force_light(page: Path) -> Path:
+    """Stamp data-theme="light" on a generated page.
+
+    Luck's stylesheet is the only one here that is theme-aware: its default
+    :root is light, and it flips to dark under `prefers-color-scheme: dark`.
+    Every other page in the report — Shelf-life, Evidence, the leakage page
+    and the report shell itself — is light-only, so on a dark-mode machine
+    Luck alone renders dark and reads as a different document.
+
+    `data-theme="light"` is that stylesheet's own documented opt-out
+    (`:root:not([data-theme="light"])` guards the dark block), so this asks
+    the page for a theme it already supports rather than overriding it.
+    Delete this the day the whole report is theme-aware.
+    """
+    txt = page.read_text(encoding="utf-8")
+    out = re.sub(r"<html\b(?![^>]*data-theme)", '<html data-theme="light"',
+                 txt, count=1)
+    if out != txt:
+        page.write_text(out, encoding="utf-8")
+    return page
+
 
 _HERE = Path(__file__).resolve().parent
 _LUCK = _HERE / "luck"
@@ -91,7 +114,7 @@ def luck_contribute(registry_entry: dict, blotter: pd.DataFrame, market: dict,
 
     body = findings_table(res)
     if out_dir is not None:
-        page = RD.write({key: rec}, key, Path(out_dir), rung=rung)
+        page = force_light(RD.write({key: rec}, key, Path(out_dir), rung=rung))
         body += panel(page, "Five tests, with the execution-basis toggle")
     return res, body
 
