@@ -27,6 +27,7 @@ still reads as one document.
 """
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -35,8 +36,56 @@ import pandas as pd
 
 from report import Finding, SectionResult, findings_table, panel
 
-def force_light(page: Path) -> Path:
-    """Stamp data-theme="light" on a generated page.
+# Injected into each panel page so it can tell the report how tall it is.
+# file:// iframes are opaque origins, so the parent cannot read the child's
+# scrollHeight directly — the child has to volunteer it. ResizeObserver keeps
+# it correct after Plotly draws and after the reader works the controls, so a
+# rung toggle or a slider re-flows the report instead of scrolling inside it.
+# Applied ONLY when the page is inside the report. Luck sets its ground and
+# its three type faces from custom properties, so its own tokens are enough
+# to bring it onto the report's white and off IBM Plex; Shelf-life hardcodes
+# its ground, hence the explicit body rule. Standalone, neither page is
+# touched — opened in its own tab each keeps the design its author chose.
+_FIT = (
+    ":root{--ground:#ffffff;--panel-2:#fafafa;--sunk:#f6f7f8;"
+    "--f-disp:system-ui,-apple-system,'Segoe UI',sans-serif;"
+    "--f-body:system-ui,-apple-system,'Segoe UI',sans-serif;"
+    "--f-mono:ui-monospace,SFMono-Regular,Menlo,monospace;}"
+    "html,body{background:#ffffff!important}"
+    ".wrap{max-width:none!important;padding-left:0!important;"
+    "padding-right:0!important}"
+)
+
+_AUTOHEIGHT = """
+<script>(function(){
+  if (parent !== window) {
+    var st = document.createElement("style");
+    st.textContent = __FIT__;
+    (document.head || document.documentElement).appendChild(st);
+  }
+  var last = 0;
+  function send(){
+    var h = Math.max(document.documentElement.scrollHeight,
+                     document.body ? document.body.scrollHeight : 0);
+    if (h && Math.abs(h - last) > 2) {
+      last = h;
+      try { parent.postMessage({__panelHeight: h}, "*"); } catch (e) {}
+    }
+  }
+  addEventListener("load", function(){
+    send(); setTimeout(send, 300); setTimeout(send, 1200); setTimeout(send, 3000);
+  });
+  addEventListener("resize", send);
+  if (window.ResizeObserver) {
+    try { new ResizeObserver(send).observe(document.documentElement); } catch (e) {}
+  }
+  setInterval(send, 1000);
+})();</script>
+""".replace("__FIT__", json.dumps(_FIT))
+
+
+def prepare_panel(page: Path) -> Path:
+    """Make a generated page fit to embed: light theme, and self-measuring.
 
     Luck's stylesheet is the only one here that is theme-aware: its default
     :root is light, and it flips to dark under `prefers-color-scheme: dark`.
@@ -47,14 +96,25 @@ def force_light(page: Path) -> Path:
     `data-theme="light"` is that stylesheet's own documented opt-out
     (`:root:not([data-theme="light"])` guards the dark block), so this asks
     the page for a theme it already supports rather than overriding it.
-    Delete this the day the whole report is theme-aware.
+    Delete the theme half of this the day the whole report is theme-aware.
+
+    Both edits are additive and idempotent: the standalone pages stay valid
+    on their own, and re-running the pipeline does not stack copies.
     """
     txt = page.read_text(encoding="utf-8")
     out = re.sub(r"<html\b(?![^>]*data-theme)", '<html data-theme="light"',
                  txt, count=1)
+    if "__panelHeight" not in out:
+        if "</body>" in out:
+            out = out.replace("</body>", _AUTOHEIGHT + "</body>", 1)
+        else:
+            out += _AUTOHEIGHT
     if out != txt:
         page.write_text(out, encoding="utf-8")
     return page
+
+
+force_light = prepare_panel      # previous name, kept for callers
 
 
 _HERE = Path(__file__).resolve().parent
@@ -114,7 +174,7 @@ def luck_contribute(registry_entry: dict, blotter: pd.DataFrame, market: dict,
 
     body = findings_table(res)
     if out_dir is not None:
-        page = force_light(RD.write({key: rec}, key, Path(out_dir), rung=rung))
+        page = prepare_panel(RD.write({key: rec}, key, Path(out_dir), rung=rung))
         body += panel(page, "Five tests, with the execution-basis toggle")
     return res, body
 
@@ -138,8 +198,9 @@ def shelf_life_contribute(registry_entry: dict, blotter: pd.DataFrame,
 
     body = findings_table(res)
     if out_dir is not None:
-        page = SL.render_html(key, blotter, market, registry_entry,
-                              Path(out_dir) / f"{key}-shelf-life.html")
+        page = prepare_panel(SL.render_html(
+            key, blotter, market, registry_entry,
+            Path(out_dir) / f"{key}-shelf-life.html"))
         body += panel(page, "Interactive dashboard — drag the rolling window, "
                             "drop the best days, rebin the regime curves")
     return res, body

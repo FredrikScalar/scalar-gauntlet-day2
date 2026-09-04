@@ -170,7 +170,7 @@ td.hot{color:#c22f2f}
 a{color:#2a78d6}
 .panel{margin:12px 0 0;border:1px solid #ececE7;border-radius:2px;
 overflow:hidden;background:#fff}
-.panel iframe{display:block;width:100%;border:0}
+.panel iframe{display:block;width:100%;border:0;overflow:hidden}
 """
 
 
@@ -178,22 +178,46 @@ def _badge(v: str) -> str:
     return f'<span class="badge" style="background:{BADGE.get(v, "#8a8a85")}">{v}</span>'
 
 
-def panel(page: "Path | str", caption: str = "", height: int = 900) -> str:
-    """Embed a section's own page as an isolated frame.
+def panel(page: "Path | str", caption: str = "", height: int = 600) -> str:
+    """Embed a section's own page as an isolated frame, sized to its content.
 
     Sections were authored independently and carry their own stylesheets,
     their own Plotly versions and their own element ids. An iframe gives each
     one its own document, so its buttons and sliders keep working and no
-    section can restyle or break another. The link is there because a frame
-    is a worse place to read a dashboard than a full tab.
+    section can restyle or break another.
+
+    The frame does NOT scroll. `section_adapters.prepare_panel` injects a
+    reporter into each panel page that posts its height up, and the listener
+    on this page grows the frame to match — so the report is one continuous
+    scroll rather than a scrollbar inside a scrollbar, and a reader working a
+    toggle or a slider re-flows the page instead of hunting inside a window.
+    `height` is only the placeholder used until the first message arrives.
     """
     name = Path(str(page)).name
     cap = f'<p class="cap">{html.escape(caption)}</p>' if caption else ""
     return (f'{cap}<div class="panel"><iframe src="{html.escape(name)}" '
-            f'height="{height}" loading="lazy" title="{html.escape(name)}">'
-            f'</iframe></div>'
+            f'height="{height}" scrolling="no" loading="lazy" '
+            f'title="{html.escape(name)}"></iframe></div>'
             f'<p class="foot"><a href="{html.escape(name)}" target="_blank">'
             f'Open {html.escape(name)} in a new tab &rarr;</a></p>')
+
+
+# Grows each frame to the height its page reports. Cross-origin by necessity:
+# file:// iframes are opaque origins, so the child volunteers the number and
+# the parent matches it by comparing contentWindow against the event source.
+_AUTOHEIGHT_LISTENER = """
+<script>addEventListener("message", function(e){
+  var d = e && e.data;
+  if (!d || typeof d.__panelHeight !== "number") return;
+  var f = document.querySelectorAll("iframe"), i;
+  for (i = 0; i < f.length; i++) {
+    if (f[i].contentWindow === e.source) {
+      f[i].style.height = Math.ceil(d.__panelHeight) + "px";
+      return;
+    }
+  }
+});</script>
+"""
 
 
 def findings_table(res: "SectionResult") -> str:
@@ -271,7 +295,7 @@ def render_html(rep: "Report", registry_entry: dict, blotter: pd.DataFrame,
   &middot; {built} of {len(SECTIONS)} sections built &middot; priced at mid</p>
 {conds}
 {body}
-</div></body></html>"""
+</div>{_AUTOHEIGHT_LISTENER}</body></html>"""
 
 
 def write_report_html(rep: "Report", registry_entry: dict,
