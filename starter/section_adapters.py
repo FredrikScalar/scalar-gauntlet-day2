@@ -46,14 +46,55 @@ from report import Finding, SectionResult, findings_table, panel
 # to bring it onto the report's white and off IBM Plex; Shelf-life hardcodes
 # its ground, hence the explicit body rule. Standalone, neither page is
 # touched — opened in its own tab each keeps the design its author chose.
+_SANS = "system-ui,-apple-system,'Segoe UI',sans-serif"
+
+# Flatten an embedded panel to the report's own plain look: system-ui on
+# white, thin rules, small grey labels, tabular figures — the Evidence
+# section's styling, which is the house style for the assembled report.
+#
+# The distinctive parts of Luck's design are its monospace uppercase labels
+# with wide letter-spacing, a 52px condensed masthead, and cards with 12px
+# radii and drop shadows. Those are what make it read as a different
+# document, so each is neutralised by name. Numbers keep tabular-nums but
+# lose the monospace face, which is how Evidence sets its own figures.
 _FIT = (
-    ":root{--ground:#ffffff;--panel-2:#fafafa;--sunk:#f6f7f8;"
-    "--f-disp:system-ui,-apple-system,'Segoe UI',sans-serif;"
-    "--f-body:system-ui,-apple-system,'Segoe UI',sans-serif;"
-    "--f-mono:ui-monospace,SFMono-Regular,Menlo,monospace;}"
-    "html,body{background:#ffffff!important}"
-    ".wrap{max-width:none!important;padding-left:0!important;"
-    "padding-right:0!important}"
+    ":root{"
+    "--ground:#fff;--panel:#fff;--panel-2:#fff;--sunk:#fafafa;"
+    "--rule:#ececE7;--rule-2:#ececE7;--shadow:none;"
+    f"--f-disp:{_SANS};--f-body:{_SANS};--f-mono:{_SANS};"
+    "}"
+    # ground and metrics
+    "html,body{background:#fff!important;font-size:14px!important}"
+    ".wrap,.controls-in{max-width:none!important;"
+    "padding-left:0!important;padding-right:0!important}"
+    # nothing raised off the page
+    "*{box-shadow:none!important}"
+    ".panel,.vstrip,.defn,.seg,.pill,.chip,.card{border-radius:2px!important}"
+    # headings down to the report's scale
+    "h1,h2,h3,h4{font-family:inherit!important;letter-spacing:0!important}"
+    ".mast{padding:0 0 16px!important}"
+    ".mast h1{font-size:19px!important;font-weight:650!important;"
+    "margin:6px 0 8px!important}"
+    ".mast .lede{font-size:13px!important}"
+    ".sec-head h2,h2{font-size:15px!important;font-weight:650!important}"
+    "h3{font-size:13px!important}h4{font-size:12.5px!important}"
+    ".sec-sub{font-size:12.5px!important;margin-left:0!important}"
+    "section{margin-bottom:26px!important}"
+    # the mono uppercase label vocabulary, neutralised
+    # every uppercase/letter-spaced label in the stylesheet, by name
+    ".eyebrow,.vstrip-lbl,.vstrip-t,.sec-num,.defn dt,.ctl>span,.mast .meta,"
+    "table.mx thead th,table.dt thead th,.tip .th,.dos-card h6,.kpi span,"
+    "details.tv summary,.axis-title,.ser-lab,.tick,.mono,.num,.kpi b,"
+    "table.dt td,table.mx td.rung{"
+    "font-family:inherit!important;letter-spacing:0!important;"
+    "text-transform:none!important}"
+    ".eyebrow,.vstrip-lbl,.vstrip-t,.ctl>span,.mast .meta,.tip .th,"
+    "table.mx thead th,table.dt thead th,.defn dt,.dos-card h6,.kpi span,"
+    "details.tv summary{font-size:11px!important;font-weight:600!important}"
+    ".kpi b{font-size:16px!important}"
+    ".sec-num{font-size:11px!important}"
+    # figures: the report's own treatment
+    ".mono,.num,table.mx td{font-variant-numeric:tabular-nums!important}"
 )
 
 _AUTOHEIGHT = """
