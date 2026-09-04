@@ -3,14 +3,14 @@
 One pipeline, run unchanged over all seven submissions:
 
     report = run(registry_entry, blotter, market)
-    report.verdict  ->  "PASS" | "SUSPECT" | "FAIL"
+    report.verdict  ->  "KEEP" | "SUSPECT" | "FAIL"
 
     python report.py        # the scoreboard and every verdict line
 
 This file defines the contract and assembles the sections that speak it.
 Two do so far — `friction` (sections.py) and `shelf_life` (shelf_life.py) —
 and the grid shows the other four as '·' rather than letting an unbuilt
-section score a silent PASS. `luck` runs as its own pipeline with its own
+section score a silent KEEP. `luck` runs as its own pipeline with its own
 KEEP/SUSPECT/FAIL vocabulary and has not been brought into this shape.
 
 Read `Report.verdict` as the verdict of the sections that ran.
@@ -23,7 +23,7 @@ import pandas as pd
 
 SECTIONS = ["luck", "lineage", "friction", "shelf_life", "evidence", "warranty"]
 
-VERDICTS = ("PASS", "SUSPECT", "FAIL")
+VERDICTS = ("KEEP", "SUSPECT", "FAIL")
 
 
 @dataclass
@@ -31,14 +31,14 @@ class Finding:
     """One test: a name, a number (or figure path), a verdict, a sentence."""
     name: str
     value: object
-    verdict: str = "INFO"          # PASS | SUSPECT | FAIL | INFO
+    verdict: str = "INFO"          # KEEP | SUSPECT | FAIL | INFO
     note: str = ""
 
 
 @dataclass
 class SectionResult:
     section: str                   # one of SECTIONS
-    verdict: str                   # PASS | SUSPECT | FAIL
+    verdict: str                   # KEEP | SUSPECT | FAIL
     findings: list[Finding] = field(default_factory=list)
 
 
@@ -58,7 +58,7 @@ class Report:
             return "FAIL"
         if "SUSPECT" in vs:
             return "SUSPECT"
-        return "PASS"
+        return "KEEP"
 
 
 def grid(reports: dict[str, Report],
@@ -80,7 +80,7 @@ def grid(reports: dict[str, Report],
 
 # Each built section: the callable returning its SectionResult, and the one
 # that reads the conditions a SUSPECT must carry off that result. Sections
-# not listed here stay '·' in the grid rather than silently scoring PASS.
+# not listed here stay '·' in the grid rather than silently scoring KEEP.
 def _builders():
     """Imported on call, not at module scope: every section module imports
     this one, so a top-level import would close the cycle."""

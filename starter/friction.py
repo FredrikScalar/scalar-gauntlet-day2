@@ -4,7 +4,7 @@ The blotters record every fill at the book mid, a price nobody quoted. This
 module asks what those same trades would have been worth under execution
 assumptions you can actually defend, and draws the answer.
 
-It deliberately reaches NO verdict. Nothing here returns PASS/SUSPECT/FAIL or
+It deliberately reaches NO verdict. Nothing here returns KEEP/SUSPECT/FAIL or
 sets a threshold; it produces the numbers and figures a verdict would later
 have to stand on. Wiring it into `report.py` is a separate, later step.
 
