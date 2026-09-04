@@ -168,11 +168,37 @@ td.hot{color:#c22f2f}
 .v{font-weight:650;font-size:11px}
 .foot{color:#8a8a85;font-size:11.5px;margin:10px 0 0}
 a{color:#2a78d6}
+.panel{margin:12px 0 0;border:1px solid #ececE7;border-radius:2px;
+overflow:hidden;background:#fff}
+.panel iframe{display:block;width:100%;border:0}
 """
 
 
 def _badge(v: str) -> str:
     return f'<span class="badge" style="background:{BADGE.get(v, "#8a8a85")}">{v}</span>'
+
+
+def panel(page: "Path | str", caption: str = "", height: int = 900) -> str:
+    """Embed a section's own page as an isolated frame.
+
+    Sections were authored independently and carry their own stylesheets,
+    their own Plotly versions and their own element ids. An iframe gives each
+    one its own document, so its buttons and sliders keep working and no
+    section can restyle or break another. The link is there because a frame
+    is a worse place to read a dashboard than a full tab.
+    """
+    name = Path(str(page)).name
+    cap = f'<p class="cap">{html.escape(caption)}</p>' if caption else ""
+    return (f'{cap}<div class="panel"><iframe src="{html.escape(name)}" '
+            f'height="{height}" loading="lazy" title="{html.escape(name)}">'
+            f'</iframe></div>'
+            f'<p class="foot"><a href="{html.escape(name)}" target="_blank">'
+            f'Open {html.escape(name)} in a new tab &rarr;</a></p>')
+
+
+def findings_table(res: "SectionResult") -> str:
+    """The uniform findings table every section is rendered with."""
+    return _generic_fragment(res)
 
 
 def _generic_fragment(res: "SectionResult") -> str:
@@ -300,6 +326,26 @@ def run(registry_entry: dict, blotter: pd.DataFrame, market: dict,
         ev, ev_html = ER.contribute(registry_entry, blotter, market, page_dir)
         sections.append(ev)
         fragments["evidence"] = ev_html
+
+        # LUCK and SHELF-LIFE were written as standalone tools; the adapters
+        # in section_adapters.py give them the contribute() shape without
+        # changing their code. Each renders its own page, embedded as an
+        # isolated frame so its stylesheet, Plotly version and controls
+        # cannot collide with the rest of the report.
+        import section_adapters as SA
+        for name, fn in (("luck", SA.luck_contribute),
+                         ("shelf_life", SA.shelf_life_contribute)):
+            try:
+                res, body = fn(registry_entry, blotter, market, page_dir)
+                sections.append(res)
+                fragments[name] = body
+            except Exception as exc:                      # noqa: BLE001
+                # A section that blows up must not take the report with it —
+                # it is recorded as INFO, which aggregates as SUSPECT.
+                sections.append(SectionResult(
+                    name, "INFO",
+                    [Finding(f"{name}_error", type(exc).__name__, "INFO",
+                             f"section did not run: {exc}")]))
 
         conditions: list[str] = []
         for s in sections:
