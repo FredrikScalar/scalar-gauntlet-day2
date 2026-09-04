@@ -329,6 +329,16 @@ border-bottom:1px solid #d9d9d4}
 .cell{display:inline-block;min-width:62px;padding:2px 7px;border-radius:3px;
 font-size:10.5px;font-weight:650;letter-spacing:.01em}
 .legend{color:#8a8a85;font-size:11.5px;margin:16px 0 0}
+.sumhead{font-size:14px;font-weight:650;margin:38px 0 0;padding-top:22px;
+border-top:1px solid #ececE7}
+.summary{list-style:none;margin:14px 0 0;padding:0}
+.summary li{padding:11px 0;border-bottom:1px solid #f2f2ee}
+.summary li:last-child{border-bottom:0}
+.summary li > a{font-weight:650;text-decoration:none;font-size:13px}
+.summary li > a:hover{text-decoration:underline}
+.summary .cell{margin-left:8px;min-width:0}
+.summary p{margin:5px 0 0;color:#52514e;font-size:12.5px;max-width:88ch}
+.summary p b{color:#1a1a1a;font-weight:650}
 """
 
 _CELL_BG = {"PASS": "#e9f6e9", "SUSPECT": "#fdf3dc", "FAIL": "#fbeaea",
@@ -373,6 +383,50 @@ def rank(reports: dict[str, "Report"]) -> list[str]:
     return sorted(reports, key=key)
 
 
+def _driver(rep: "Report") -> tuple["SectionResult | None", "Finding | None"]:
+    """The section that decided this verdict, and the finding that drove it."""
+    fails = [s for s in rep.sections if s.verdict == "FAIL"]
+    unresolved = [s for s in rep.sections if s.verdict in ("SUSPECT", "INFO")]
+    sec = (fails or unresolved or [None])[0]
+    if sec is None:
+        return None, None
+    bad = [f for f in sec.findings if f.verdict == "FAIL"] or \
+          [f for f in sec.findings if f.verdict == "SUSPECT"]
+    return sec, (bad[0] if bad else None)
+
+
+def summarise(rep: "Report") -> str:
+    """One sentence on where a submission falls down.
+
+    Taken from the section that set the verdict and the finding that drove
+    it, so the line cannot drift from the report it summarises — if a
+    threshold moves, this moves with it.
+    """
+    sec, finding = _driver(rep)
+    if sec is None:
+        n = len(rep.sections)
+        return (f"Clean on all {n} built section{'s' if n != 1 else ''} — "
+                f"nothing to answer for yet.")
+
+    title = SECTION_TITLES.get(sec.section, (sec.section, ""))[0]
+    shown = display_verdict(sec.verdict)
+    if finding is not None and finding.note:
+        lead = f"<b>{html.escape(title)} {shown.lower()}</b> — {html.escape(finding.note)}"
+    elif sec.verdict == "INFO":
+        lead = (f"<b>{html.escape(title)} {shown.lower()}</b> — the test could "
+                f"not run on this submission, so its question is unanswered "
+                f"rather than answered well")
+    else:
+        lead = f"<b>{html.escape(title)} {shown.lower()}</b>"
+
+    others = [SECTION_TITLES.get(s.section, (s.section, ""))[0]
+              for s in rep.sections
+              if s is not sec and s.verdict in ("FAIL", "SUSPECT", "INFO")]
+    tail = (f" Also unresolved on {html.escape(', '.join(others))}." if others
+            else "")
+    return lead.rstrip(".") + "." + tail
+
+
 def render_overview(reports: dict[str, "Report"],
                     submissions: list[str] | None = None) -> str:
     """The scoreboard: seven submissions down, six sections across.
@@ -395,9 +449,14 @@ def render_overview(reports: dict[str, "Report"],
                  f'{html.escape(str(sub))}</a></td>{cells}'
                  f'<td class="overall">{_cell(str(row["OVERALL"]))}</td></tr>')
 
-    order = {"FAIL": 0, "SUSPECT": 1, "PASS": 2}
     tally = {v: sum(1 for r in reports.values() if r.verdict == v)
              for v in ("PASS", "SUSPECT", "FAIL")}
+
+    summaries = "".join(
+        f'<li><a href="{html.escape(sub)}-report.html">{html.escape(sub)}</a>'
+        f'{_cell(reports[sub].verdict)}'
+        f'<p>{summarise(reports[sub])}</p></li>'
+        for sub in df.index)
 
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
@@ -414,6 +473,9 @@ def render_overview(reports: dict[str, "Report"],
   <thead><tr><th>submission</th>{head}<th>overall</th></tr></thead>
   <tbody>{body}</tbody>
 </table>
+
+<h2 class="sumhead">Where each one falls down</h2>
+<ol class="summary">{summaries}</ol>
 
 <p class="legend">Any section FAIL fails the submission; any SUSPECT (and no
 FAIL) makes it SUSPECT. A section that could not run on a submission shows as
