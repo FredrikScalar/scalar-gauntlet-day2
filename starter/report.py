@@ -174,6 +174,22 @@ overflow:hidden;background:#fff}
 """
 
 
+def display_verdict(v: str) -> str:
+    """A SECTION's verdict as the report shows it: INFO reads as SUSPECT.
+
+    INFO means the section could not run on this submission. It has always
+    aggregated as SUSPECT — a test that found nothing is not a test that
+    found nothing wrong — and showing it as SUSPECT makes the page agree
+    with the rule instead of asking the reader to know that INFO is not a
+    pass. Why it could not run stays in the section's findings and in its
+    conditions, so nothing is lost but the ambiguous label.
+
+    FINDING-level INFO is left alone: those are informational lines (which
+    execution basis was used, where a page was written), not failed tests.
+    """
+    return "SUSPECT" if v == "INFO" else v
+
+
 def _badge(v: str) -> str:
     return f'<span class="badge" style="background:{BADGE.get(v, "#8a8a85")}">{v}</span>'
 
@@ -271,7 +287,7 @@ def render_html(rep: "Report", registry_entry: dict, blotter: pd.DataFrame,
   <section class="sec{todo}" id="{key}">
     <div class="sechead"><span class="n">{i}</span>
       <h2>{html.escape(title)}</h2>
-      {_badge(res.verdict) if res else _badge("·")}</div>
+      {_badge(display_verdict(res.verdict)) if res else _badge("·")}</div>
     <p class="q">{html.escape(question)}</p>
     {inner}
   </section>"""
@@ -296,6 +312,104 @@ def render_html(rep: "Report", registry_entry: dict, blotter: pd.DataFrame,
 {conds}
 {body}
 </div>{_AUTOHEIGHT_LISTENER}</body></html>"""
+
+
+_OVERVIEW_CSS = _CSS + """
+.grid{border-collapse:collapse;width:100%;font-size:12.5px;margin:18px 0 0}
+.grid th,.grid td{padding:9px 10px;border-bottom:1px solid #ececE7;
+text-align:center;white-space:nowrap}
+.grid th:first-child,.grid td:first-child{text-align:left}
+.grid thead th{color:#8a8a85;font-weight:600;font-size:11px;
+border-bottom:1px solid #d9d9d4}
+.grid tbody tr:hover{background:#fafafa}
+.grid td.sub{font-weight:600}
+.grid td.sub a{text-decoration:none}
+.grid td.sub a:hover{text-decoration:underline}
+.grid td.overall{border-left:1px solid #ececE7;font-weight:650}
+.cell{display:inline-block;min-width:62px;padding:2px 7px;border-radius:3px;
+font-size:10.5px;font-weight:650;letter-spacing:.01em}
+.legend{color:#8a8a85;font-size:11.5px;margin:16px 0 0}
+"""
+
+_CELL_BG = {"PASS": "#e9f6e9", "SUSPECT": "#fdf3dc", "FAIL": "#fbeaea",
+            "INFO": "#f0f0ec", "·": "transparent"}
+_CELL_INK = {"PASS": "#0a7a0a", "SUSPECT": "#8a6000", "FAIL": "#a92c2c",
+             "INFO": "#78838f", "·": "#c8c8c2"}
+
+
+def _cell(v: str) -> str:
+    return (f'<span class="cell" style="background:{_CELL_BG.get(v, "#f0f0ec")};'
+            f'color:{_CELL_INK.get(v, "#78838f")}">{html.escape(v)}</span>')
+
+
+def render_overview(reports: dict[str, "Report"],
+                    submissions: list[str] | None = None) -> str:
+    """The scoreboard: seven submissions down, six sections across.
+
+    `grid()` already computes exactly this table; this only paints it and
+    links each row to its full report. Unbuilt sections stay '·' rather than
+    being scored, so the page never implies more coverage than exists.
+    """
+    df = grid(reports, submissions)
+    built = sorted({s.section for r in reports.values() for s in r.sections})
+
+    head = "".join(f"<th>{html.escape(SECTION_TITLES[c][0] if c in SECTION_TITLES else c)}</th>"
+                   for c in SECTIONS)
+    body = ""
+    for sub, row in df.iterrows():
+        cells = "".join(f"<td>{_cell(display_verdict(str(row[c])))}</td>"
+                        for c in SECTIONS)
+        body += (f'<tr><td class="sub">'
+                 f'<a href="{html.escape(str(sub))}-report.html">'
+                 f'{html.escape(str(sub))}</a></td>{cells}'
+                 f'<td class="overall">{_cell(str(row["OVERALL"]))}</td></tr>')
+
+    order = {"FAIL": 0, "SUSPECT": 1, "PASS": 2}
+    tally = {v: sum(1 for r in reports.values() if r.verdict == v)
+             for v in ("PASS", "SUSPECT", "FAIL")}
+
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Validation scoreboard</title>
+<style>{_OVERVIEW_CSS}</style></head><body><div class="wrap">
+
+<h1>Validation scoreboard</h1>
+<p class="sub">{len(df)} submissions &middot; {len(built)} of
+  {len(SECTIONS)} sections built &middot; priced at mid &middot;
+  {tally['PASS']} pass, {tally['SUSPECT']} suspect, {tally['FAIL']} fail</p>
+
+<table class="grid">
+  <thead><tr><th>submission</th>{head}<th>overall</th></tr></thead>
+  <tbody>{body}</tbody>
+</table>
+
+<p class="legend">Any section FAIL fails the submission; any SUSPECT (and no
+FAIL) makes it SUSPECT. A section that could not run on a submission shows as
+SUSPECT, never as a pass — the reason is in that submission's report.
+&middot; marks a section not yet built. Each submission links to its full
+report.</p>
+</div></body></html>"""
+
+
+def write_overview(reports: dict[str, "Report"],
+                   out_dir: str | Path = "reports",
+                   filename: str = "overview.html") -> Path:
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / filename
+    path.write_text(render_overview(reports), encoding="utf-8")
+    return path
+
+
+def run_all(registry: dict, blotters: dict, market: dict,
+            out_dir: str | Path = "reports") -> dict[str, "Report"]:
+    """Every submission through `run()`, plus the scoreboard."""
+    reports = {k: run(registry[k], blotters[k], market, out_dir)
+               for k in sorted(registry)}
+    if out_dir is not None:
+        write_overview(reports, out_dir)
+    return reports
 
 
 def write_report_html(rep: "Report", registry_entry: dict,
