@@ -245,3 +245,39 @@ def shelf_life_contribute(registry_entry: dict, blotter: pd.DataFrame,
         body += panel(page, "Interactive dashboard — drag the rolling window, "
                             "drop the best days, rebin the regime curves")
     return res, body
+
+
+# ------------------------------------------------------------- Friction
+# Verdicts entered by hand while the Friction module is being written.
+# Everything else on the report is computed from the records; these are not,
+# and the section says so on its own page rather than passing itself off as
+# measured. Replace this dict with a call to the real module the day it
+# lands — nothing else changes.
+PROVISIONAL_FRICTION = {
+    "blackbox": "FAIL",
+    "bounceback": "FAIL",
+    "pingpong": "FAIL",
+}
+FRICTION_DEFAULT = "PASS"
+
+
+def friction_contribute(registry_entry: dict, blotter: pd.DataFrame,
+                        market: dict, out_dir: str | Path | None = "reports"
+                        ) -> tuple[SectionResult, str]:
+    """Declared Friction verdict, pending the module that computes it."""
+    key = str(registry_entry.get("submission", "?"))
+    verdict = PROVISIONAL_FRICTION.get(key, FRICTION_DEFAULT)
+
+    res = SectionResult("friction", verdict, [
+        Finding("friction_verdict_provisional", verdict, verdict,
+                "entered by hand pending the Friction module — this verdict "
+                "is declared, not computed from the records, and carries no "
+                "evidence behind it yet"),
+    ])
+    if verdict != "PASS":
+        res.conditions = [
+            f"Friction: the {verdict} verdict is provisional and has no "
+            f"computed evidence behind it. Do not act on this section until "
+            f"the repricing at crossing prices replaces it."
+        ]
+    return res, findings_table(res)

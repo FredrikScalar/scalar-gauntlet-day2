@@ -52,6 +52,10 @@ PLOTLY = "https://cdnjs.cloudflare.com/ajax/libs/plotly.js/4.0.0/plotly.min.js"
 BADGE = {"PASS": "#0f8a3c", "SUSPECT": "#b8860b", "FAIL": "#c22f2f",
          "INFO": "#8a8a85", "·": "#c8c8c2"}
 
+# Sections whose verdicts are declared rather than computed. Marked on the
+# scoreboard so nobody reads a hand-entered cell as measured evidence.
+PROVISIONAL_SECTIONS = {"friction"}
+
 VERDICTS = ("PASS", "SUSPECT", "FAIL")
 
 
@@ -438,8 +442,10 @@ def render_overview(reports: dict[str, "Report"],
     df = grid(reports, submissions if submissions is not None else rank(reports))
     built = sorted({s.section for r in reports.values() for s in r.sections})
 
-    head = "".join(f"<th>{html.escape(SECTION_TITLES[c][0] if c in SECTION_TITLES else c)}</th>"
-                   for c in SECTIONS)
+    head = "".join(
+        f"<th>{html.escape(SECTION_TITLES[c][0] if c in SECTION_TITLES else c)}"
+        f"{'<sup>†</sup>' if c in PROVISIONAL_SECTIONS else ''}</th>"
+        for c in SECTIONS)
     body = ""
     for sub, row in df.iterrows():
         cells = "".join(f"<td>{_cell(display_verdict(str(row[c])))}</td>"
@@ -476,6 +482,10 @@ def render_overview(reports: dict[str, "Report"],
 
 <h2 class="sumhead">Where each one falls down</h2>
 <ol class="summary">{summaries}</ol>
+
+<p class="legend">† Friction's verdicts are declared, not computed: they were
+entered by hand pending the module that reprices at crossing prices, and carry
+no evidence behind them yet.</p>
 
 <p class="legend">Any section FAIL fails the submission; any SUSPECT (and no
 FAIL) makes it SUSPECT. A section that could not run on a submission shows as
@@ -565,7 +575,8 @@ def run(registry_entry: dict, blotter: pd.DataFrame, market: dict,
         # cannot collide with the rest of the report.
         import section_adapters as SA
         for name, fn in (("luck", SA.luck_contribute),
-                         ("shelf_life", SA.shelf_life_contribute)):
+                         ("shelf_life", SA.shelf_life_contribute),
+                         ("friction", SA.friction_contribute)):
             try:
                 res, body = fn(registry_entry, blotter, market, page_dir)
                 sections.append(res)
