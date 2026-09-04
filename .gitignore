@@ -1,8 +1,16 @@
-.DS_Store
-.venv/
+# Python
 __pycache__/
 *.pyc
+.venv/
 .ipynb_checkpoints/
+
+# OS / IDE
+.DS_Store
+.idea/
 
 # Generated validation reports (reproducible from report.run())
 reports/
+
+# Shelf-life: vendored Plotly (large; code falls back to the Plotly CDN) and generated reports
+starter/_vendor/
+starter/shelf_life_*.html

@@ -1,0 +1,26 @@
+# Five-tests pipeline — Python requirements
+#
+#   cd starter/luck
+#   python3 -m venv .venv
+#   . .venv/bin/activate            # Windows: .venv\Scripts\activate
+#   pip install -r requirements.txt
+#   python3 pipeline.py --check     # confirms the deps and the data are reachable
+#   python3 pipeline.py windfall
+#
+# Python 3.9 or newer. Verified on 3.11 with the versions in the right-hand
+# column; the floors are the oldest releases the pipeline is known to work on.
+#
+#   package   floor      verified on
+#   numpy     1.22       2.4.4
+#   pandas    1.4        3.0.2
+#   scipy     1.8        1.17.1
+#   PyYAML    5.4        6.0.3
+#
+# Nothing else is needed: the reports are self-contained HTML built by
+# render.py, with the IBM Plex faces inlined from starter/luck/fonts/. No
+# charting library, no web server, no network access at build or view time.
+
+numpy>=1.22
+pandas>=1.4
+scipy>=1.8
+PyYAML>=5.4
