@@ -342,6 +342,37 @@ def _cell(v: str) -> str:
             f'color:{_CELL_INK.get(v, "#78838f")}">{html.escape(v)}</span>')
 
 
+_VERDICT_RANK = {"PASS": 0, "SUSPECT": 1, "FAIL": 2}
+
+
+def rank(reports: dict[str, "Report"]) -> list[str]:
+    """Submissions worst-last: fundable at the top, void at the bottom.
+
+    Sorted on, in order:
+
+      1. the overall verdict — PASS, then SUSPECT, then FAIL;
+      2. whether LINEAGE failed. An integrity failure is not the same kind
+         of thing as a weak one. A strategy whose trades used information
+         that did not exist yet has not underperformed — its whole record
+         is void, and no amount of Sharpe redeems it. So it sorts below
+         every other FAIL regardless of how the rest of its report reads;
+      3. how many sections failed, then how many are unresolved.
+
+    This is a rule, not a hand-placed order: whichever submission is
+    caught by Lineage lands at the bottom, and the ranking survives
+    Friction landing or the reveal changing the answers.
+    """
+    def key(sub: str):
+        rep = reports[sub]
+        by = {s.section: s.verdict for s in rep.sections}
+        return (_VERDICT_RANK.get(rep.verdict, 1),
+                1 if by.get("lineage") == "FAIL" else 0,
+                sum(1 for v in by.values() if v == "FAIL"),
+                sum(1 for v in by.values() if v in ("SUSPECT", "INFO")),
+                sub)
+    return sorted(reports, key=key)
+
+
 def render_overview(reports: dict[str, "Report"],
                     submissions: list[str] | None = None) -> str:
     """The scoreboard: seven submissions down, six sections across.
@@ -350,7 +381,7 @@ def render_overview(reports: dict[str, "Report"],
     links each row to its full report. Unbuilt sections stay '·' rather than
     being scored, so the page never implies more coverage than exists.
     """
-    df = grid(reports, submissions)
+    df = grid(reports, submissions if submissions is not None else rank(reports))
     built = sorted({s.section for r in reports.values() for s in r.sections})
 
     head = "".join(f"<th>{html.escape(SECTION_TITLES[c][0] if c in SECTION_TITLES else c)}</th>"
