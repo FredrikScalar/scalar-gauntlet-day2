@@ -5,9 +5,15 @@ One pipeline, run unchanged over all seven submissions:
     report = run(registry_entry, blotter, market)
     report.verdict  ->  "PASS" | "SUSPECT" | "FAIL"
 
-This file defines the contract only. The six sections — what each one should
-compute — are the six-sections handout; the evidence behind every verdict
-line is the point of the exercise. Nothing below does any validation yet.
+    python report.py        # the scoreboard and every verdict line
+
+This file defines the contract and assembles the sections that speak it.
+Two do so far — `friction` (sections.py) and `shelf_life` (shelf_life.py) —
+and the grid shows the other four as '·' rather than letting an unbuilt
+section score a silent PASS. `luck` runs as its own pipeline with its own
+KEEP/SUSPECT/FAIL vocabulary and has not been brought into this shape.
+
+Read `Report.verdict` as the verdict of the sections that ran.
 """
 from __future__ import annotations
 
@@ -72,11 +78,92 @@ def grid(reports: dict[str, Report],
     return pd.DataFrame(rows).T[SECTIONS + ["OVERALL"]]
 
 
-def run(registry_entry: dict, blotter: pd.DataFrame, market: dict) -> Report:
+# Each built section: the callable returning its SectionResult, and the one
+# that reads the conditions a SUSPECT must carry off that result. Sections
+# not listed here stay '·' in the grid rather than silently scoring PASS.
+def _builders():
+    """Imported on call, not at module scope: every section module imports
+    this one, so a top-level import would close the cycle."""
+    import sections as friction_mod
+    import shelf_life as shelf_mod
+
+    # Every builder takes (entry, blotter, market, tape) so `run` can call
+    # them uniformly; shelf-life ignores the tape it is handed.
+    return [
+        (friction_mod.friction, friction_mod.conditions_for),
+        (lambda e, b, m, tape=None: shelf_mod.shelf_life(e, b, m),
+         lambda sec: shelf_mod._suggested_conditions(sec.verdict,
+                                                     sec.findings)),
+    ]
+
+
+def run(registry_entry: dict, blotter: pd.DataFrame, market: dict,
+        tape=None) -> Report:
     """Take one submission's records, return the verdict with evidence.
 
-    Suggested shape: one function per section, each returning a
-    SectionResult; this function assembles them. Start with the sections
-    that are pure record arithmetic and grow from there.
+    One function per section, each returning a SectionResult; this assembles
+    them. `luck` and `lineage` do not speak this contract yet, so a report
+    from here carries `friction` and `shelf_life` and the grid shows the
+    others as unbuilt. Read `Report.verdict` as the verdict of the sections
+    that ran, not of all six.
+
+    `tape` is the executed trade tape, which only friction needs; it loads
+    from data/ on demand when not supplied.
     """
-    raise NotImplementedError("this is the hackathon")
+    sections, conditions = [], []
+    for build, conds in _builders():
+        sec = build(registry_entry, blotter, market, tape=tape)
+        sections.append(sec)
+        if sec.verdict == "SUSPECT":
+            conditions.extend(conds(sec))
+
+    report = Report(submission=registry_entry["submission"],
+                    sections=sections, conditions=conditions)
+    # A SUSPECT report with no conditions is an unfinished report; say so
+    # loudly here rather than letting it reach a funding decision.
+    if report.verdict == "SUSPECT" and not report.conditions:
+        raise ValueError(f"{report.submission}: SUSPECT with no conditions - "
+                         "a section returned SUSPECT but named no condition")
+    return report
+
+
+def run_all(registry: dict, market: dict, blotter_dir="../blotters",
+            tape=None) -> dict[str, Report]:
+    """The same pipeline over every submission, unchanged."""
+    from pathlib import Path
+
+    from repricer import load_blotter
+
+    out = {}
+    for key, entry in sorted(registry.items()):
+        out[key] = run(entry, load_blotter(Path(blotter_dir) /
+                                           f"{key}-blotter.csv"), market, tape)
+    return out
+
+
+if __name__ == "__main__":
+    import sys
+
+    from pathlib import Path as _Path
+
+    _root = _Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_root / "registry"))
+    import execution as _ex                                   # noqa: E402
+    from loader import load_registry                          # noqa: E402
+    from repricer import load_market                          # noqa: E402
+
+    _reports = run_all(load_registry(_root / "registry"),
+                       load_market(_root / "data"),
+                       _root / "blotters",
+                       _ex.Tape.load(_root / "data"))
+    print(grid(_reports).to_string())
+    print()
+    for _key, _r in sorted(_reports.items()):
+        print(f"{_key}  {_r.verdict}")
+        for _sec in _r.sections:
+            print(f"    {_sec.verdict:<8} {_sec.section}")
+            for _f in _sec.findings:
+                print(f"        {_f.verdict:<8} {_f.name:<34} {_f.note}")
+        for _c in _r.conditions:
+            print(f"    CONDITION  {_c}")
+        print()

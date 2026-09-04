@@ -1,0 +1,9 @@
+# Gauntlet day environment.  python -m venv .venv && .venv/Scripts/pip install -r requirements.txt
+pandas==3.0.5
+numpy==2.5.2
+matplotlib==3.11.1
+PyYAML==6.0.3
+scipy==1.18.1
+plotly==7.0.0
+jupyter==1.1.1
+ipykernel==7.3.0
