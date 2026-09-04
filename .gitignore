@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+
+# Shelf-life: vendored Plotly (large; code falls back to the Plotly CDN) and generated reports
+starter/_vendor/
+starter/shelf_life_*.html
