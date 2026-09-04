@@ -10,8 +10,8 @@ import pytest
 
 import report
 import sections as sc
-import verdicts as vd
-from verdicts import FAIL, KEEP, SUSPECT
+import friction_verdicts as vd
+from friction_verdicts import FAIL, KEEP, SUSPECT
 
 
 def _checks(**verdicts) -> list[vd.Check]:

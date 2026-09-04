@@ -25,7 +25,7 @@ import pandas as pd
 import execution as ex
 import friction as fr
 import report
-import verdicts as vd
+import friction_verdicts as vd
 from repricer import daily_pnl, load_blotter, load_market, sharpe
 
 FILLS = ("mid", "cross", "sweep")

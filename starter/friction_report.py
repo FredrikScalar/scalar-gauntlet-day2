@@ -44,7 +44,7 @@ from plotly.subplots import make_subplots
 import execution as ex
 import friction as fr
 import sections as sc
-import verdicts as vd
+import friction_verdicts as vd
 from repricer import daily_pnl, load_blotter, load_market, sharpe
 
 MID_C, CROSS_C, SWEEP_C = "#7c848e", "#2d5f8b", "#b3403f"

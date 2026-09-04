@@ -4,8 +4,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-import verdicts as v
-from verdicts import FAIL, KEEP, SUSPECT
+import friction_verdicts as v
+from friction_verdicts import FAIL, KEEP, SUSPECT
 
 
 def _daily(pnl_mid=1000.0, sh_mid=2.0, pnl_touch=900.0, sh_touch=1.8,

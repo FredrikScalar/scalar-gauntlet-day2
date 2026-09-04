@@ -8,12 +8,15 @@ One pipeline, run unchanged over all seven submissions:
     python report.py        # the scoreboard and every verdict line
 
 This file defines the contract and assembles the sections that speak it.
-Two do so far — `friction` (sections.py) and `shelf_life` (shelf_life.py) —
-and the grid shows the other four as '·' rather than letting an unbuilt
-section score a silent KEEP. `luck` runs as its own pipeline with its own
-KEEP/SUSPECT/FAIL vocabulary and has not been brought into this shape.
+Three do so far — `luck` (luck_section.py), `friction` (sections.py) and
+`shelf_life` (shelf_life.py). The grid shows `lineage`, `evidence` and
+`warranty` as '·' rather than letting an unbuilt section score a silent
+KEEP, so read `Report.verdict` as the verdict of the sections that ran.
 
-Read `Report.verdict` as the verdict of the sections that ran.
+`luck` reads the record `luck/pipeline.py` caches rather than recomputing
+it, so build that cache first:
+
+    python starter/luck/pipeline.py all
 """
 from __future__ import annotations
 
@@ -84,12 +87,14 @@ def grid(reports: dict[str, Report],
 def _builders():
     """Imported on call, not at module scope: every section module imports
     this one, so a top-level import would close the cycle."""
+    import luck_section as luck_mod
     import sections as friction_mod
     import shelf_life as shelf_mod
 
     # Every builder takes (entry, blotter, market, tape) so `run` can call
-    # them uniformly; shelf-life ignores the tape it is handed.
+    # them uniformly; luck and shelf-life ignore the tape they are handed.
     return [
+        (luck_mod.luck, luck_mod.conditions_for),
         (friction_mod.friction, friction_mod.conditions_for),
         (lambda e, b, m, tape=None: shelf_mod.shelf_life(e, b, m),
          lambda sec: shelf_mod._suggested_conditions(sec.verdict,
