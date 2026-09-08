@@ -13,8 +13,8 @@ import luck_section as ls
 from report import SectionResult
 
 ENTRY = {"submission": "windfall"}
-SCORED = {"coinflip": "KEEP", "bootstrap": "KEEP", "dsr": "SUSPECT",
-          "days": "KEEP", "baseline": "KEEP", "overall": "SUSPECT"}
+SCORED = {"coinflip": "PASS", "bootstrap": "PASS", "dsr": "SUSPECT",
+          "days": "PASS", "baseline": "PASS", "overall": "SUSPECT"}
 WHY = {k: f"because {k}" for k in SCORED}
 
 
@@ -106,7 +106,7 @@ def test_every_luck_test_names_a_condition():
 
 
 def test_an_info_finding_never_becomes_a_condition(luck_stub):
-    luck_stub(scored=dict(SCORED, dsr="KEEP", overall="KEEP"), stale=True)
+    luck_stub(scored=dict(SCORED, dsr="PASS", overall="PASS"), stale=True)
     assert ls.conditions_for(ls.luck(ENTRY, pd.DataFrame(), {})) == []
 
 

@@ -1,4 +1,4 @@
-"""Thresholds - turning the execution stress numbers into KEEP/SUSPECT/FAIL.
+"""Thresholds - turning the execution stress numbers into PASS/SUSPECT/FAIL.
 
 Everything in `friction.py` and `execution.py` is deliberately descriptive.
 This module is the only place a threshold lives, so the line between "what
@@ -21,7 +21,7 @@ Two sections, six checks:
                  hold it
 
 Aggregation: any FAIL fails the submission, any SUSPECT (and no FAIL) makes
-it SUSPECT, otherwise KEEP.
+it SUSPECT, otherwise PASS.
 """
 from __future__ import annotations
 
@@ -30,8 +30,8 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-KEEP, SUSPECT, FAIL = "KEEP", "SUSPECT", "FAIL"
-RANK = {KEEP: 0, SUSPECT: 1, FAIL: 2}
+PASS, SUSPECT, FAIL = "PASS", "SUSPECT", "FAIL"
+RANK = {PASS: 0, SUSPECT: 1, FAIL: 2}
 
 # ---- the thresholds, all of them, in one place ---------------------------
 DEGRADE = 0.50          # "more than half" - retaining less than this is a drop
@@ -76,7 +76,7 @@ def check_mid(pnl_mid: float) -> Check:
     """The recorded fill is the most generous price there is. If it does not
     make money there, nothing downstream can rescue it."""
     ok = pnl_mid > 0
-    return Check("mid", KEEP if ok else FAIL,
+    return Check("mid", PASS if ok else FAIL,
                  f"P&L at mid is {pnl_mid:,.0f} EUR"
                  + ("" if ok else " - not profitable at the price the blotter "
                                   "itself records"),
@@ -113,7 +113,7 @@ def check_edge(edge_mid: float, half_spread: float,
     if cov < COVERAGE_SUSPECT:
         return Check("edge", SUSPECT,
                      base + " - friction takes most of it", vals)
-    return Check("edge", KEEP, base, vals)
+    return Check("edge", PASS, base, vals)
 
 
 def _versus_mid(name: str, pnl: float, sharpe: float,
@@ -146,7 +146,7 @@ def _versus_mid(name: str, pnl: float, sharpe: float,
         return Check(name, SUSPECT,
                      f"Sharpe holds up ({sr:.0%}) but P&L keeps only "
                      f"{pr:.0%}", vals)
-    return Check(name, KEEP,
+    return Check(name, PASS,
                  f"keeps {pr:.0%} of P&L and {sr:.0%} of Sharpe", vals)
 
 
@@ -190,7 +190,7 @@ def check_sweep(pnl: float, sharpe: float, pnl_mid: float, sharpe_mid: float,
     # Anything left is a SPREAD cost, which `touch` has already judged and
     # passed. Re-charging it here would count the same cost twice, so a
     # `_versus_mid` SUSPECT does not survive into sweep's verdict.
-    return Check("sweep", KEEP,
+    return Check("sweep", PASS,
                  f"the clip fits - it keeps {worst:.0%} of the touch", c.values)
 
 
@@ -206,7 +206,7 @@ def check_clip_size(clip_mw: float, big_print_mw: float,
     """
     tag = f"p{CLIP_QUANTILE * 100:.0f}"
     big = np.isfinite(big_print_mw) and clip_mw > big_print_mw
-    return Check("clip_size", SUSPECT if big else KEEP,
+    return Check("clip_size", SUSPECT if big else PASS,
                  f"clip is {clip_mw:,.0f} MW against a "
                  f"{median_print_mw:,.1f} MW median print and "
                  f"{big_print_mw:,.1f} MW at {tag}"
@@ -241,7 +241,7 @@ def check_absorption(absorb_min: float, hold_min: float) -> Check:
     if ratio > ABSORB_SUSPECT:
         return Check("absorb", SUSPECT,
                      base + " - over half the holding period", vals)
-    return Check("absorb", KEEP, base, vals)
+    return Check("absorb", PASS, base, vals)
 
 
 # --------------------------------------------------------------------------
@@ -278,7 +278,7 @@ def assess(daily: dict, stats: dict) -> list[Check]:
     return checks
 
 
-# A SUSPECT is not a soft KEEP - it is a KEEP with strings attached, and
+# A SUSPECT is not a soft PASS - it is a PASS with strings attached, and
 # `report.Report` treats a SUSPECT carrying no conditions as an unfinished
 # report. Every check that can return SUSPECT names its condition here.
 CONDITIONS = {
@@ -309,7 +309,7 @@ def overall(checks: list[Check]) -> str:
 def failing(checks: list[Check], verdict: str | None = None) -> list[str]:
     """Which checks carry the deciding verdict, named for reporting."""
     verdict = verdict or overall(checks)
-    if verdict == KEEP:
+    if verdict == PASS:
         return []
     return [c.name for c in checks if c.verdict == verdict]
 
@@ -343,7 +343,7 @@ SECTIONS = ("fill mode", "market absorption")
 def section_verdict(checks: list[Check], section: str) -> str:
     """The worst verdict among the checks belonging to one section."""
     inside = [c.verdict for c in checks if SECTION[c.name] == section]
-    return max(inside, key=lambda v: RANK[v]) if inside else KEEP
+    return max(inside, key=lambda v: RANK[v]) if inside else PASS
 
 
 def section_grid(per_submission: dict[str, list[Check]]) -> pd.DataFrame:

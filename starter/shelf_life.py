@@ -135,7 +135,7 @@ def _verdict(registry_entry: dict, daily: pd.Series, hourly: pd.Series,
         note = (f"edge softening: last-third Sharpe {sr_last:.2f} is "
                 f"{sr_last / sr_first:.0%} of first-third {sr_first:.2f}")
     else:
-        v, note = "KEEP", f"Sharpe stable across sample: {sr_first:.2f} -> {sr_last:.2f}"
+        v, note = "PASS", f"Sharpe stable across sample: {sr_first:.2f} -> {sr_last:.2f}"
     findings.append(Finding("sharpe_decay_first_vs_last_third",
                             (round(sr_first, 2), round(sr_last, 2)), v, note))
 
@@ -143,7 +143,7 @@ def _verdict(registry_entry: dict, daily: pd.Series, hourly: pd.Series,
     by_month = hourly.groupby(hourly.index.to_period("M")).sum()
     if total > 0 and len(by_month):
         best_share = float(by_month.max() / total)
-        v = "SUSPECT" if best_share > CONC_MONTH else "KEEP"
+        v = "SUSPECT" if best_share > CONC_MONTH else "PASS"
         note = f"best single month = {best_share:.0%} of total P&L ({by_month.idxmax()})"
     else:
         best_share, v, note = float("nan"), "INFO", "no positive total P&L to attribute"
@@ -153,7 +153,7 @@ def _verdict(registry_entry: dict, daily: pd.Series, hourly: pd.Series,
     active_months = by_month[by_month != 0.0]
     if len(active_months):
         frac_pos = float((active_months > 0).mean())
-        v = "SUSPECT" if frac_pos < BREADTH_MIN else "KEEP"
+        v = "SUSPECT" if frac_pos < BREADTH_MIN else "PASS"
         note = f"{frac_pos:.0%} of {len(active_months)} active months positive"
     else:
         frac_pos, v, note = float("nan"), "INFO", "no active months"
@@ -170,14 +170,14 @@ def _verdict(registry_entry: dict, daily: pd.Series, hourly: pd.Series,
         v = "SUSPECT"
         note = f"P&L is a regime bet: corr(vol)={c_vol:+.2f}, corr(turnover)={c_tno:+.2f}"
     else:
-        v = "KEEP"
+        v = "PASS"
         note = f"regime-neutral: corr(vol)={c_vol:+.2f}, corr(turnover)={c_tno:+.2f}"
     findings.append(Finding("pnl_regime_correlation",
                             (round(c_vol, 2), round(c_tno, 2)), v, note))
 
     verdicts = [f.verdict for f in findings]
     section_verdict = "FAIL" if "FAIL" in verdicts else \
-                      "SUSPECT" if "SUSPECT" in verdicts else "KEEP"
+                      "SUSPECT" if "SUSPECT" in verdicts else "PASS"
     result = SectionResult("shelf_life", section_verdict, findings)
     result.conditions = _suggested_conditions(section_verdict, findings)
     return result
@@ -185,7 +185,7 @@ def _verdict(registry_entry: dict, daily: pd.Series, hourly: pd.Series,
 
 def shelf_life(registry_entry: dict, blotter: pd.DataFrame,
                market: dict) -> SectionResult:
-    """The section contract: findings + one KEEP/SUSPECT/FAIL verdict."""
+    """The section contract: findings + one PASS/SUSPECT/FAIL verdict."""
     return _verdict(registry_entry,
                     _daily_pnl(blotter, registry_entry),
                     _hourly_pnl(blotter),
@@ -193,7 +193,7 @@ def shelf_life(registry_entry: dict, blotter: pd.DataFrame,
 
 
 def _suggested_conditions(verdict, findings) -> list[str]:
-    if verdict == "KEEP":
+    if verdict == "PASS":
         return []
     conds = []
     for f in findings:
@@ -293,7 +293,7 @@ _TEMPLATE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <title>Shelf-life · %%TITLE%%</title>
 %%PLOTLY%%
 <style>
-  :root{--fg:#1c2230;--mut:#667;--line:#e3e7ee;--keep:#2e8b57;--susp:#e8a33d;--fail:#d1495b;--info:#888;--blue:#3b7dd8}
+  :root{--fg:#1c2230;--mut:#667;--line:#e3e7ee;--pass:#2e8b57;--susp:#e8a33d;--fail:#d1495b;--info:#888;--blue:#3b7dd8}
   body{font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:var(--fg);
        max-width:1180px;margin:22px auto;padding:0 18px;background:#fff}
   h1{margin:0 0 2px} h3{margin:26px 0 6px;border-bottom:1px solid var(--line);padding-bottom:4px}
@@ -405,7 +405,7 @@ curve bows below it, the more the money comes from a few buckets. <b>Gini</b> (0
 const P = %%PAYLOAD%%;
 const $ = id => document.getElementById(id);
 const DOW = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-const VC = {KEEP:"var(--keep)",SUSPECT:"var(--susp)",FAIL:"var(--fail)",INFO:"var(--info)"};
+const VC = {PASS:"var(--pass)",SUSPECT:"var(--susp)",FAIL:"var(--fail)",INFO:"var(--info)"};
 const ANN = Math.sqrt(365);
 const fmt = (x,d=0)=> x===null||!isFinite(x) ? "–" : x.toLocaleString("en",{maximumFractionDigits:d,minimumFractionDigits:d});
 
@@ -680,7 +680,7 @@ function drawRolling(){
     const pct=valid.length?100*outside/valid.length:0, failed=pct>5;
     $("p3metric").innerHTML=
       `Rolling Sharpe outside the ${win}-day 95% CI: <b>${pct.toFixed(1)}%</b> (${outside} of ${valid.length} points)`+
-      `<span class="tag" style="background:${failed?VC.FAIL:VC.KEEP}">${failed?"FAIL":"KEEP"}</span>`+
+      `<span class="tag" style="background:${failed?VC.FAIL:VC.PASS}">${failed?"FAIL":"PASS"}</span>`+
       `<span class="note">threshold 5% — more points outside than sampling noise allows means the edge isn't stationary</span>`;
   }
   Plotly.react("p3sharpe",[

@@ -32,15 +32,15 @@ def builders(monkeypatch):
 # ---- assembly --------------------------------------------------------------
 
 def test_run_collects_every_built_section(builders):
-    builders(_stub("friction", "KEEP"), _stub("shelf_life", "KEEP"))
+    builders(_stub("friction", "PASS"), _stub("shelf_life", "PASS"))
     r = report.run(ENTRY, pd.DataFrame(), {})
     assert [s.section for s in r.sections] == ["friction", "shelf_life"]
-    assert r.verdict == "KEEP"
+    assert r.verdict == "PASS"
     assert r.submission == "test"
 
 
 def test_any_fail_fails_the_submission(builders):
-    builders(_stub("friction", "FAIL"), _stub("shelf_life", "KEEP"))
+    builders(_stub("friction", "FAIL"), _stub("shelf_life", "PASS"))
     assert report.run(ENTRY, pd.DataFrame(), {}).verdict == "FAIL"
 
 
@@ -60,7 +60,7 @@ def test_conditions_are_gathered_from_the_suspect_sections(builders):
 
 
 def test_a_passing_section_contributes_no_conditions(builders):
-    builders(_stub("friction", "KEEP", ["never asked for"]),
+    builders(_stub("friction", "PASS", ["never asked for"]),
              _stub("shelf_life", "SUSPECT", ["paper-trade a quarter"]))
     assert report.run(ENTRY, pd.DataFrame(), {}).conditions == \
         ["paper-trade a quarter"]
@@ -89,7 +89,7 @@ def test_every_builder_is_called_with_the_tape(builders):
     def spy(name):
         def build(e, b, m, tape=None):
             seen[name] = tape
-            return SectionResult(name, "KEEP", [])
+            return SectionResult(name, "PASS", [])
         return (build, lambda sec: [])
 
     builders(spy("friction"), spy("shelf_life"))
@@ -100,10 +100,10 @@ def test_every_builder_is_called_with_the_tape(builders):
 # ---- the grid --------------------------------------------------------------
 
 def test_grid_shows_unbuilt_sections_as_unbuilt(builders):
-    builders(_stub("friction", "KEEP"), _stub("shelf_life", "KEEP"))
+    builders(_stub("friction", "PASS"), _stub("shelf_life", "PASS"))
     g = report.grid({"test": report.run(ENTRY, pd.DataFrame(), {})})
-    assert g.loc["test", "friction"] == "KEEP"
-    assert g.loc["test", "shelf_life"] == "KEEP"
+    assert g.loc["test", "friction"] == "PASS"
+    assert g.loc["test", "shelf_life"] == "PASS"
     for unbuilt in ("luck", "lineage", "evidence", "warranty"):
         assert g.loc["test", unbuilt] == "·"
 
@@ -115,9 +115,9 @@ def test_grid_keeps_the_declared_section_order():
 
 def test_run_all_runs_the_same_pipeline_over_every_submission(builders,
                                                               monkeypatch):
-    builders(_stub("friction", "KEEP"), _stub("shelf_life", "KEEP"))
+    builders(_stub("friction", "PASS"), _stub("shelf_life", "PASS"))
     monkeypatch.setattr("repricer.load_blotter", lambda p: pd.DataFrame())
     registry = {"a": {"submission": "a"}, "b": {"submission": "b"}}
     out = report.run_all(registry, {}, "../blotters")
     assert sorted(out) == ["a", "b"]
-    assert all(r.verdict == "KEEP" for r in out.values())
+    assert all(r.verdict == "PASS" for r in out.values())

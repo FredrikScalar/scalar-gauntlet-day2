@@ -11,12 +11,12 @@ import pytest
 import report
 import sections as sc
 import friction_verdicts as vd
-from friction_verdicts import FAIL, KEEP, SUSPECT
+from friction_verdicts import FAIL, PASS, SUSPECT
 
 
 def _checks(**verdicts) -> list[vd.Check]:
-    """One Check per name in `vd.CHECKS`, KEEP unless overridden."""
-    return [vd.Check(n, verdicts.get(n, KEEP), f"{n} note", {"n": n})
+    """One Check per name in `vd.CHECKS`, PASS unless overridden."""
+    return [vd.Check(n, verdicts.get(n, PASS), f"{n} note", {"n": n})
             for n in vd.CHECKS]
 
 
@@ -28,7 +28,7 @@ def test_section_is_named_friction():
 
 
 def test_section_verdict_is_the_worst_check():
-    assert sc.to_section(_checks()).verdict == KEEP
+    assert sc.to_section(_checks()).verdict == PASS
     assert sc.to_section(_checks(edge=SUSPECT)).verdict == SUSPECT
     assert sc.to_section(_checks(edge=SUSPECT, absorb=FAIL)).verdict == FAIL
 
@@ -73,7 +73,7 @@ def test_every_check_that_can_be_suspect_has_a_condition():
 def test_mid_never_returns_suspect():
     """The premise of PASS_FAIL_ONLY, pinned rather than assumed."""
     for pnl in (-1.0, 0.0, 1.0, 1e9):
-        assert vd.check_mid(pnl).verdict in (KEEP, FAIL)
+        assert vd.check_mid(pnl).verdict in (PASS, FAIL)
 
 
 def test_conditions_are_declared_for_real_checks_only():
@@ -89,7 +89,7 @@ def _report(**verdicts) -> report.Report:
 
 
 def test_report_verdict_follows_the_friction_section():
-    assert _report().verdict == KEEP
+    assert _report().verdict == PASS
     assert _report(absorb=SUSPECT).verdict == SUSPECT
     assert _report(touch=FAIL).verdict == FAIL
 

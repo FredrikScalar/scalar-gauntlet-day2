@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 import friction_verdicts as v
-from friction_verdicts import FAIL, KEEP, SUSPECT
+from friction_verdicts import FAIL, PASS, SUSPECT
 
 
 def _daily(pnl_mid=1000.0, sh_mid=2.0, pnl_touch=900.0, sh_touch=1.8,
@@ -25,7 +25,7 @@ def _stats(clip=10.0, p99=20.0, med_print=4.5, absorb=10.0, hold=60.0):
 # ---- mid -------------------------------------------------------------------
 
 def test_mid_must_make_money():
-    assert v.check_mid(1.0).verdict == KEEP
+    assert v.check_mid(1.0).verdict == PASS
     assert v.check_mid(0.0).verdict == FAIL
     assert v.check_mid(-5.0).verdict == FAIL
 
@@ -33,7 +33,7 @@ def test_mid_must_make_money():
 # ---- touch, and the fail/suspect split -------------------------------------
 
 def test_touch_passes_when_both_metrics_hold_up():
-    assert v.check_touch(900, 1.8, 1000, 2.0).verdict == KEEP
+    assert v.check_touch(900, 1.8, 1000, 2.0).verdict == PASS
 
 
 def test_touch_fails_on_negative_pnl():
@@ -62,21 +62,21 @@ def test_touch_suspect_when_only_pnl_collapses():
 def test_exactly_half_retained_is_a_drop():
     """`more than half` lost means keeping strictly less than half is bad;
     keeping exactly half is not."""
-    assert v.check_touch(500, 1.0, 1000, 2.0).verdict == KEEP
+    assert v.check_touch(500, 1.0, 1000, 2.0).verdict == PASS
     assert v.check_touch(499, 0.99, 1000, 2.0).verdict == FAIL
 
 
 # ---- sweep adds a comparison against the touch -----------------------------
 
 def test_sweep_matching_a_passing_touch_passes():
-    c = v.check_sweep(900, 1.8, 1000, 2.0, 900, 1.8, KEEP)
-    assert c.verdict == KEEP
+    c = v.check_sweep(900, 1.8, 1000, 2.0, 900, 1.8, PASS)
+    assert c.verdict == PASS
 
 
 def test_sweep_suspect_when_it_degrades_against_the_touch():
     """Fine against mid, but half its value is lost between touch and sweep -
     that is a size cost, not a spread cost."""
-    c = v.check_sweep(600, 0.8, 1000, 2.0, 900, 1.8, KEEP)
+    c = v.check_sweep(600, 0.8, 1000, 2.0, 900, 1.8, PASS)
     assert c.verdict == SUSPECT
     assert "too big for the book" in c.note
 
@@ -101,23 +101,23 @@ def test_sweep_no_longer_goes_suspect_on_the_spread_alone():
 
     Sweep is identical to the touch (the clip fits), so there is no size
     cost; Sharpe keeps only 40% of mid, but that loss happened getting to
-    the touch, and the touch passed it. Sweep is KEEP.
+    the touch, and the touch passed it. Sweep is PASS.
     """
-    c = v.check_sweep(900, 0.8, 1000, 2.0, 900, 0.8, KEEP)
-    assert c.verdict == KEEP
+    c = v.check_sweep(900, 0.8, 1000, 2.0, 900, 0.8, PASS)
+    assert c.verdict == PASS
     assert v.check_touch(900, 0.8, 1000, 2.0).verdict == SUSPECT  # the old path
 
 
 def test_sweep_fail_against_mid_is_not_softened_by_the_touch_rule():
-    c = v.check_sweep(-10, -1.0, 1000, 2.0, 900, 1.8, KEEP)
+    c = v.check_sweep(-10, -1.0, 1000, 2.0, 900, 1.8, PASS)
     assert c.verdict == FAIL
 
 
 def test_sweep_records_what_it_kept_against_the_touch():
-    c = v.check_sweep(600, 0.9, 1000, 2.0, 900, 1.8, KEEP)
+    c = v.check_sweep(600, 0.9, 1000, 2.0, 900, 1.8, PASS)
     assert c.values["pnl_vs_touch"] == pytest.approx(600 / 900)
     assert c.values["sharpe_vs_touch"] == pytest.approx(0.5)
-    assert c.values["touch_verdict"] == KEEP
+    assert c.values["touch_verdict"] == PASS
 
 
 def test_assess_feeds_the_touch_verdict_into_sweep():
@@ -131,7 +131,7 @@ def test_assess_feeds_the_touch_verdict_into_sweep():
 # ---- absorption ------------------------------------------------------------
 
 def test_clip_size_suspect_above_the_big_print_quantile():
-    assert v.check_clip_size(10, 20, 4.5).verdict == KEEP
+    assert v.check_clip_size(10, 20, 4.5).verdict == PASS
     assert v.check_clip_size(25, 20, 4.5).verdict == SUSPECT
 
 
@@ -145,11 +145,11 @@ def test_clip_size_reads_the_quantile_the_thresholds_declare():
 
 
 def test_clip_size_passes_when_the_quantile_is_unknown():
-    assert v.check_clip_size(25, np.nan, 4.5).verdict == KEEP
+    assert v.check_clip_size(25, np.nan, 4.5).verdict == PASS
 
 
 def test_absorption_thresholds():
-    assert v.check_absorption(20, 60).verdict == KEEP        # 0.33x
+    assert v.check_absorption(20, 60).verdict == PASS        # 0.33x
     assert v.check_absorption(40, 60).verdict == SUSPECT     # 0.67x
     assert v.check_absorption(90, 60).verdict == FAIL        # 1.5x
 
@@ -162,7 +162,7 @@ def test_absorption_fails_when_the_tape_never_gets_there():
 
 def test_all_pass_is_a_pass():
     checks = v.assess(_daily(), _stats())
-    assert v.overall(checks) == KEEP
+    assert v.overall(checks) == PASS
     assert v.failing(checks) == []
 
 
@@ -189,7 +189,7 @@ def test_grid_has_a_column_per_check_and_an_overall():
     g = v.grid({"a": v.assess(_daily(), _stats()),
                 "b": v.assess(_daily(pnl_mid=-1), _stats())})
     assert list(g.columns) == list(v.CHECKS) + ["OVERALL"]
-    assert g.loc["a", "OVERALL"] == KEEP
+    assert g.loc["a", "OVERALL"] == PASS
     assert g.loc["b", "OVERALL"] == FAIL
 
 
@@ -198,7 +198,7 @@ def test_grid_has_a_column_per_check_and_an_overall():
 def test_section_verdict_takes_the_worst_check_in_that_section():
     checks = v.assess(_daily(pnl_touch=-1), _stats())
     assert v.section_verdict(checks, "fill mode") == FAIL
-    assert v.section_verdict(checks, "market absorption") == KEEP
+    assert v.section_verdict(checks, "market absorption") == PASS
 
 
 def test_section_grid_has_a_column_per_section():
@@ -208,10 +208,10 @@ def test_section_grid_has_a_column_per_section():
         "broken": v.assess(_daily(pnl_mid=-1), _stats()),
     })
     assert list(g.columns) == ["fill mode", "market absorption", "OVERALL"]
-    assert g.loc["clean"].tolist() == [KEEP, KEEP, KEEP]
-    assert g.loc["slow"].tolist() == [KEEP, FAIL, FAIL]
+    assert g.loc["clean"].tolist() == [PASS, PASS, PASS]
+    assert g.loc["slow"].tolist() == [PASS, FAIL, FAIL]
     assert g.loc["broken", "fill mode"] == FAIL
-    assert g.loc["broken", "market absorption"] == KEEP
+    assert g.loc["broken", "market absorption"] == PASS
 
 
 def test_section_grid_is_ordered_worst_last():
@@ -239,14 +239,14 @@ def test_edge_suspect_when_friction_takes_most_of_it():
 
 def test_edge_passes_with_room_to_spare():
     c = v.check_edge(2.0, 0.40, fee=0.10)           # 4.0x coverage
-    assert c.verdict == KEEP
+    assert c.verdict == PASS
     assert c.values["edge_net"] == pytest.approx(1.5)
 
 
 def test_edge_boundaries_are_inclusive_upward():
     """Exactly at a threshold is the kinder verdict."""
     assert v.check_edge(0.50, 0.40, fee=0.10).verdict == SUSPECT   # 1.0x
-    assert v.check_edge(1.00, 0.40, fee=0.10).verdict == KEEP      # 2.0x
+    assert v.check_edge(1.00, 0.40, fee=0.10).verdict == PASS      # 2.0x
 
 
 def test_edge_counts_the_fee_against_the_edge():

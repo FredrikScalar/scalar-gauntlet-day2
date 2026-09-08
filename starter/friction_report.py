@@ -17,7 +17,7 @@ grid and method note is derived from whatever registry, blotters, market and
 tape are supplied.
 
 The numbers come from `friction.py` and `execution.py`, which stay purely
-descriptive. Every threshold that turns them into KEEP / SUSPECT / FAIL lives
+descriptive. Every threshold that turns them into PASS / SUSPECT / FAIL lives
 in `friction_verdicts.py`, so the line between what the data says and where
 the line stays visible.
 
@@ -579,13 +579,13 @@ code { background:var(--soft); padding:1px 5px; border-radius:3px;
 .badge { display:inline-block; font:600 11px/1 var(--mono);
   letter-spacing:0.06em; padding:5px 9px; border-radius:4px;
   border:1px solid; white-space:nowrap; }
-.badge.keep { color:#2f6b46; background:#eef7f1; border-color:#bcdfc9; }
+.badge.pass { color:#2f6b46; background:#eef7f1; border-color:#bcdfc9; }
 .badge.suspect { color:#8a5a12; background:#fdf5e7; border-color:#eed9ae; }
 .badge.fail { color:#93332f; background:#fdeeed; border-color:#eec3c0; }
 .verdictbar { display:flex; align-items:center; gap:12px; margin:22px 0 6px;
   padding:13px 16px; border-radius:8px; border:1px solid var(--rule);
   font-weight:600; font-size:15px; }
-.verdictbar.keep { background:#f2f9f5; border-color:#cfe6d8; }
+.verdictbar.pass { background:#f2f9f5; border-color:#cfe6d8; }
 .verdictbar.suspect { background:#fdf8ef; border-color:#eee0c2; }
 .verdictbar.fail { background:#fdf2f1; border-color:#eecfcd; }
 .verdictline { padding:9px 2px; border-bottom:1px solid var(--rule);
@@ -721,7 +721,7 @@ class Page:
 # the page
 # --------------------------------------------------------------------------
 
-BADGE = {vd.KEEP: ("keep", "KEEP"), vd.SUSPECT: ("suspect", "SUSPECT"),
+BADGE = {vd.PASS: ("pass", "PASS"), vd.SUSPECT: ("suspect", "SUSPECT"),
          vd.FAIL: ("fail", "FAIL")}
 
 
@@ -788,7 +788,7 @@ RULES = {
     },
 }
 OVERALL_RULE = ("Any FAIL fails the submission; any SUSPECT and no FAIL makes "
-                "it SUSPECT; otherwise KEEP.")
+                "it SUSPECT; otherwise PASS.")
 
 
 def rule_bullets(name: str) -> str:
@@ -802,7 +802,7 @@ def rule_bullets(name: str) -> str:
         lis = "".join(f"<li>{i}</li>" for i in items)
         out.append(f'<div class="rulegroup">{badge(verdict)}'
                    f'<span class="rif">if</span><ul>{lis}</ul></div>')
-    out.append(f'<div class="rulegroup">{badge(vd.KEEP)}'
+    out.append(f'<div class="rulegroup">{badge(vd.PASS)}'
                '<span class="rif">otherwise</span></div>')
     return "".join(out)
 
@@ -866,8 +866,8 @@ def overview_section(d: dict, pg: Page) -> None:
     g, sg = d["grid"], d["section_grid"]
     counts = g["OVERALL"].value_counts()
     line = " · ".join(f"{counts.get(v, 0)} {v.lower()}"
-                      for v in (vd.KEEP, vd.SUSPECT, vd.FAIL))
-    passed = list(g.index[g["OVERALL"] == vd.KEEP])
+                      for v in (vd.PASS, vd.SUSPECT, vd.FAIL))
+    passed = list(g.index[g["OVERALL"] == vd.PASS])
     pg.html(f'<div class="note"><b>{line}.</b> '
             + (f"Passing every check: <b>{', '.join(passed)}</b>."
                if passed else "No submission passes every check.")

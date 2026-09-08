@@ -1,6 +1,6 @@
 """Luck - section 1 - in the shape `report.py` defines.
 
-`luck/` already computes the five tests and already decides KEEP / SUSPECT /
+`luck/` already computes the five tests and already decides PASS / SUSPECT /
 FAIL in `luck/verdicts.py`. Nothing here re-judges any of that; this is the
 adapter that hands its answer to `report.run` as a `SectionResult`, so the
 luck column stops reading '·'.

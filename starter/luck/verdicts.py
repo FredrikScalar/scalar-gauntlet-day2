@@ -12,8 +12,8 @@ trader — which is not skill.
 """
 from __future__ import annotations
 
-KEEP, SUSPECT, FAIL = "KEEP", "SUSPECT", "FAIL"
-ORDER = {KEEP: 0, SUSPECT: 1, FAIL: 2}
+PASS, SUSPECT, FAIL = "PASS", "SUSPECT", "FAIL"
+ORDER = {PASS: 0, SUSPECT: 1, FAIL: 2}
 
 # ---- tunables (documented on the report page) ---------------------------
 COINFLIP_Z_KEEP     = 4.0     # z above the coin-flip mean, at mid
@@ -40,7 +40,7 @@ def coinflip(rec, rung):
         return SUSPECT, f"z={z:.1f} — inside the band where the best-of-10,000 verdict is fragile"
     if flips or seed["beats_max"] != "always":
         return SUSPECT, f"z={z:.1f} but the best-of-10,000 verdict is not seed-stable"
-    return KEEP, f"z={z:.1f}, beats the luckiest of 10,000 coin flips on every seed"
+    return PASS, f"z={z:.1f}, beats the luckiest of 10,000 coin flips on every seed"
 
 
 def bootstrap(rec, rung):
@@ -52,7 +52,7 @@ def bootstrap(rec, rung):
         return FAIL, f"95% interval {lo:.2f} to {hi:.2f} contains zero"
     if lo < BOOT_LOWER_KEEP:
         return SUSPECT, f"95% interval lower bound only {lo:.2f}"
-    return KEEP, f"95% interval {lo:.2f} to {hi:.2f}, clear of zero"
+    return PASS, f"95% interval {lo:.2f} to {hi:.2f}, clear of zero"
 
 
 def deflated(rec, rung):
@@ -60,12 +60,12 @@ def deflated(rec, rung):
     d = rec["rungs"][rung]["dsr"]
     N, brk = d["declared"], d["break_analytic"]
     if brk is None:
-        return KEEP, f"deflated Sharpe never falls through 0.95, declared {N} trials"
+        return PASS, f"deflated Sharpe never falls through 0.95, declared {N} trials"
     if brk < N:
         return FAIL, f"breaks at {brk} trials, below the {N} declared"
     if brk < DSR_BREAK_KEEP_MULT*N:
         return SUSPECT, f"breaks at {brk} trials against {N} declared ({brk/N:.1f}x)"
-    return KEEP, f"breaks at {brk} trials, {brk/N:.0f}x the {N} declared"
+    return PASS, f"breaks at {brk} trials, {brk/N:.0f}x the {N} declared"
 
 
 def best_days(rec, rung):
@@ -81,7 +81,7 @@ def best_days(rec, rung):
         return FAIL, f"deleting {z} best days ({pct:.1f}% of active days) erases it"
     if pct < DAYS_PCT_KEEP:
         return SUSPECT, f"deleting {z} best days ({pct:.1f}% of active days) erases it"
-    return KEEP, f"needs {z} best days ({pct:.1f}% of active days) deleted to break even"
+    return PASS, f"needs {z} best days ({pct:.1f}% of active days) deleted to break even"
 
 
 def baseline(rec, rung):
@@ -96,7 +96,7 @@ def baseline(rec, rung):
         return FAIL, f"breadth-neutral edge is {ratio:.2f}x the market — below the market itself"
     if ratio < RATIO_KEEP:
         return SUSPECT, f"breadth-neutral edge only {ratio:.2f}x the market"
-    return KEEP, f"breadth-neutral edge {ratio:.2f}x the market"
+    return PASS, f"breadth-neutral edge {ratio:.2f}x the market"
 
 
 TESTS = [

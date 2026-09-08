@@ -3,7 +3,7 @@
 One pipeline, run unchanged over all seven submissions:
 
     report = run(registry_entry, blotter, market)
-    report.verdict  ->  "KEEP" | "SUSPECT" | "FAIL"
+    report.verdict  ->  "PASS" | "SUSPECT" | "FAIL"
 
     python report.py        # the scoreboard and every verdict line
 
@@ -11,7 +11,7 @@ This file defines the contract and assembles the sections that speak it.
 Three do so far — `luck` (luck_section.py), `friction` (sections.py) and
 `shelf_life` (shelf_life.py). The grid shows `lineage`, `evidence` and
 `warranty` as '·' rather than letting an unbuilt section score a silent
-KEEP, so read `Report.verdict` as the verdict of the sections that ran.
+PASS, so read `Report.verdict` as the verdict of the sections that ran.
 
 `luck` reads the record `luck/pipeline.py` caches rather than recomputing
 it, so build that cache first:
@@ -26,7 +26,7 @@ import pandas as pd
 
 SECTIONS = ["luck", "lineage", "friction", "shelf_life", "evidence", "warranty"]
 
-VERDICTS = ("KEEP", "SUSPECT", "FAIL")
+VERDICTS = ("PASS", "SUSPECT", "FAIL")
 
 
 @dataclass
@@ -34,14 +34,14 @@ class Finding:
     """One test: a name, a number (or figure path), a verdict, a sentence."""
     name: str
     value: object
-    verdict: str = "INFO"          # KEEP | SUSPECT | FAIL | INFO
+    verdict: str = "INFO"          # PASS | SUSPECT | FAIL | INFO
     note: str = ""
 
 
 @dataclass
 class SectionResult:
     section: str                   # one of SECTIONS
-    verdict: str                   # KEEP | SUSPECT | FAIL
+    verdict: str                   # PASS | SUSPECT | FAIL
     findings: list[Finding] = field(default_factory=list)
 
 
@@ -61,7 +61,7 @@ class Report:
             return "FAIL"
         if "SUSPECT" in vs:
             return "SUSPECT"
-        return "KEEP"
+        return "PASS"
 
 
 def grid(reports: dict[str, Report],
@@ -83,7 +83,7 @@ def grid(reports: dict[str, Report],
 
 # Each built section: the callable returning its SectionResult, and the one
 # that reads the conditions a SUSPECT must carry off that result. Sections
-# not listed here stay '·' in the grid rather than silently scoring KEEP.
+# not listed here stay '·' in the grid rather than silently scoring PASS.
 def _builders():
     """Imported on call, not at module scope: every section module imports
     this one, so a top-level import would close the cycle."""
