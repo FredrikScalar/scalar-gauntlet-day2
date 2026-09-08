@@ -29,22 +29,22 @@ def v_coinflip(k, rung):
     flips = "FLIP" in str(ss["beats_max"]) or ss["above_q999"] == "FLIPS"
     if p > 0.01 or z < 2.5: return "FAIL"
     if z < 4.0 or flips or not stable_best: return "SUSPECT"
-    return "KEEP"
+    return "PASS"
 
 def v_bootstrap(k, rung):
     b = P["subs"][k]["rungs"][rung]["boot"]
     lo = min(b["ci"][0], b["blk_ci"][0])
     if lo <= 0: return "FAIL"
     if lo < 1.0: return "SUSPECT"
-    return "KEEP"
+    return "PASS"
 
 def v_dsr(k, rung):
     d = D["subs"][k]["rungs"][rung]["dsr"]
     N = d["declared"]; brk = d["break_analytic"]
-    if brk is None: return "KEEP"
+    if brk is None: return "PASS"
     if brk < N: return "FAIL"
     if brk < 10*N: return "SUSPECT"
-    return "KEEP"
+    return "PASS"
 
 def v_days(k, rung):
     r = D["subs"][k]["rungs"][rung]
@@ -53,7 +53,7 @@ def v_days(k, rung):
     pct = 100.0*z/act
     if pct < 5: return "FAIL"
     if pct < 15: return "SUSPECT"
-    return "KEEP"
+    return "PASS"
 
 def v_base(k, rung):
     bb = B["subs"][k]["rungs"][rung]
@@ -61,7 +61,7 @@ def v_base(k, rung):
     beaten_by_long = bb["always_long"]["sharpe"] > bb["strategy"]["sharpe"] + 0.05
     if ratio < 1.0 or beaten_by_long: return "FAIL"
     if ratio < 3.0: return "SUSPECT"
-    return "KEEP"
+    return "PASS"
 
 TESTS = [
     ("coinflip",  "Coin-flip trader",        v_coinflip),
@@ -70,7 +70,7 @@ TESTS = [
     ("days",      "Best-days removal",       v_days),
     ("baseline",  "Baseline comparison",     v_base),
 ]
-ORD = {"KEEP": 0, "SUSPECT": 1, "FAIL": 2}
+ORD = {"PASS": 0, "SUSPECT": 1, "FAIL": 2}
 
 out = {
     "generated": D["generated"], "fee": D["fee"], "ann": D["ann"],

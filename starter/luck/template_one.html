@@ -372,7 +372,7 @@ const pval = p => p===0 ? "<0.0001" : p.toFixed(4);
 const R = r => S.rungs[r||rung];
 const V = r => S.verdicts[r||rung];
 const WHY = r => S.why[r||rung];
-const CLS = {KEEP:"keep", SUSPECT:"suspect", FAIL:"fail"};
+const CLS = {PASS:"keep", SUSPECT:"suspect", FAIL:"fail"};
 const ICON = {
   keep:'<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.4 5.2 3.7 7.6 8.6 2.3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   suspect:'<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.1 9.3 8.7H.7z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5 4v2.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="5" cy="7.5" r=".7" fill="currentColor"/></svg>',

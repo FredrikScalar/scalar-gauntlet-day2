@@ -506,9 +506,19 @@ def write_overview(reports: dict[str, "Report"],
 
 
 def run_all(registry: dict, blotters: dict, market: dict,
-            out_dir: str | Path = "reports") -> dict[str, "Report"]:
-    """Every submission through `run()`, plus the scoreboard."""
-    reports = {k: run(registry[k], blotters[k], market, out_dir)
+            out_dir: str | Path = "reports", tape=None) -> dict[str, "Report"]:
+    """Every submission through `run()`, plus the scoreboard.
+
+    The tape is loaded once here and handed to each submission, rather than
+    letting seven Friction sections each parse it.
+    """
+    if tape is None:
+        try:
+            import execution as _ex
+            tape = _ex.Tape.load(Path(__file__).resolve().parent.parent / "data")
+        except Exception:                                 # noqa: BLE001
+            tape = None      # friction falls back to loading it itself
+    reports = {k: run(registry[k], blotters[k], market, out_dir, tape)
                for k in sorted(registry)}
     if out_dir is not None:
         write_overview(reports, out_dir)
@@ -528,11 +538,15 @@ def write_report_html(rep: "Report", registry_entry: dict,
 
 
 def run(registry_entry: dict, blotter: pd.DataFrame, market: dict,
-        out_dir: str | Path | None = "reports") -> Report:
+        out_dir: str | Path | None = "reports", tape=None) -> Report:
     """Take one submission's records, return the verdict with evidence.
 
     One submission in, one Report out, with each section's HTML page written
     to `out_dir` (pass None to compute verdicts without writing pages).
+
+    `tape` is the executed trade tape, which only Friction reads; it loads
+    from data/ on demand when not supplied. Pass it in when running the
+    whole cohort so the 1.8M-row file is parsed once, not seven times.
 
     Sections are imported inside the function on purpose: every section
     module imports Finding/SectionResult from this one, so a module-level
@@ -575,8 +589,7 @@ def run(registry_entry: dict, blotter: pd.DataFrame, market: dict,
         # cannot collide with the rest of the report.
         import section_adapters as SA
         for name, fn in (("luck", SA.luck_contribute),
-                         ("shelf_life", SA.shelf_life_contribute),
-                         ("friction", SA.friction_contribute)):
+                         ("shelf_life", SA.shelf_life_contribute)):
             try:
                 res, body = fn(registry_entry, blotter, market, page_dir)
                 sections.append(res)
@@ -588,6 +601,24 @@ def run(registry_entry: dict, blotter: pd.DataFrame, market: dict,
                     name, "INFO",
                     [Finding(f"{name}_error", type(exc).__name__, "INFO",
                              f"section did not run: {exc}")]))
+
+        # FRICTION — computed from the executed trade tape. This replaces the
+        # hand-entered placeholder that stood here while the module was
+        # pending: that verdict was declared, this one is measured. The tape
+        # is the only thing any section needs beyond `market`, and friction
+        # loads it itself when not passed one.
+        try:
+            import sections as friction_mod
+            res = friction_mod.friction(registry_entry, blotter, market, tape)
+            if res.verdict == "SUSPECT" and not res.conditions:
+                res.conditions = friction_mod.conditions_for(res)
+            sections.append(res)
+            fragments["friction"] = findings_table(res)
+        except Exception as exc:                          # noqa: BLE001
+            sections.append(SectionResult(
+                "friction", "INFO",
+                [Finding("friction_error", type(exc).__name__, "INFO",
+                         f"section did not run: {exc}")]))
 
         conditions: list[str] = []
         for s in sections:
@@ -601,3 +632,31 @@ def run(registry_entry: dict, blotter: pd.DataFrame, market: dict,
             write_report_html(rep, registry_entry, blotter, market,
                               fragments, out_dir)
     return rep
+
+
+if __name__ == "__main__":
+    # The whole pipeline over all seven, unchanged per submission, printing
+    # the scoreboard and then each report's sections, findings and conditions.
+    import sys
+
+    _root = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_root / "registry"))
+    from loader import load_registry                          # noqa: E402
+    from repricer import load_blotter, load_market            # noqa: E402
+
+    _registry = load_registry(_root / "registry")
+    _market = load_market(_root / "data")
+    _blotters = {k: load_blotter(_root / "blotters" / f"{k}-blotter.csv")
+                 for k in _registry}
+
+    _reports = run_all(_registry, _blotters, _market, _root / "reports")
+    print(grid(_reports).to_string())
+    print()
+    for _key in rank(_reports):
+        _r = _reports[_key]
+        print(f"{_key}  {_r.verdict}")
+        for _sec in _r.sections:
+            print(f"    {_sec.verdict:<8} {_sec.section}")
+        for _c in _r.conditions:
+            print(f"    CONDITION  {_c}")
+        print()

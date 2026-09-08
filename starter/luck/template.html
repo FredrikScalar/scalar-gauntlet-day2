@@ -581,7 +581,7 @@ const pc = n => (n==null||!isFinite(n)) ? "—" : (100*n).toFixed(0)+"%";
 const S = k => D.subs[k];
 const R = k => D.subs[k].rungs[rung];
 const V = k => D.subs[k].verdicts[rung];
-const CLS = {KEEP:"keep", SUSPECT:"suspect", FAIL:"fail"};
+const CLS = {PASS:"keep", SUSPECT:"suspect", FAIL:"fail"};
 const ICON = {
   keep:'<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.4 5.2 3.7 7.6 8.6 2.3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   suspect:'<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.1 9.3 8.7H.7z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5 4v2.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="5" cy="7.5" r=".7" fill="currentColor"/></svg>',
@@ -746,7 +746,7 @@ function renderMatrix(){
   tr.appendChild(h("th",null,"Sharpe"));
   thead.appendChild(tr); t.appendChild(thead);
   const tb=h("tbody");
-  const rank={KEEP:0,SUSPECT:1,FAIL:2};
+  const rank={PASS:0,SUSPECT:1,FAIL:2};
   const order=[...SUBS].sort((a,b)=>{
     if(SUBJECT){ if(a===SUBJECT) return -1; if(b===SUBJECT) return 1; }
     const d=rank[V(a).overall]-rank[V(b).overall];
@@ -769,21 +769,21 @@ function renderMatrix(){
     tb.appendChild(row);
   });
   t.appendChild(tb);
-  const counts={KEEP:0,SUSPECT:0,FAIL:0};
+  const counts={PASS:0,SUSPECT:0,FAIL:0};
   SUBS.forEach(k=>counts[V(k).overall]++);
   const w=document.getElementById("rungWarn");
-  const keeps=SUBS.filter(k=>V(k).overall==="KEEP").map(k=>S(k).name);
+  const keeps=SUBS.filter(k=>V(k).overall==="PASS").map(k=>S(k).name);
   if(SUBJECT){
     const v=V(SUBJECT), s=S(SUBJECT);
     const worst=TESTS.filter(x=>v[x.id]===v.overall).map(x=>x.name);
     w.innerHTML = "<b>"+s.name+" on "+RUNG_SHORT[rung]+": "+v.overall+"</b> — "+
-      (v.overall==="KEEP" ? "it clears all five tests"
+      (v.overall==="PASS" ? "it clears all five tests"
         : "set by "+worst.join(", "))+". "+
-      (peers?("Of all seven, "+counts.KEEP+" keep · "+counts.SUSPECT+
+      (peers?("Of all seven, "+counts.PASS+" keep · "+counts.SUSPECT+
       " suspect · "+counts.FAIL+" fail"+(keeps.length?", surviving all five: <b>"+keeps.join(", ")+"</b>":"")+".")
       :"Turn peer context on in the bar above to see where that sits against the other six.");
   } else {
-    w.innerHTML = "<b>On "+RUNG_SHORT[rung]+":</b> "+counts.KEEP+" keep · "+counts.SUSPECT+
+    w.innerHTML = "<b>On "+RUNG_SHORT[rung]+":</b> "+counts.PASS+" keep · "+counts.SUSPECT+
       " suspect · "+counts.FAIL+" fail. "+
       (keeps.length? "Surviving all five tests: <b>"+keeps.join(", ")+"</b>." : "Nothing survives all five tests.");
   }
@@ -1493,7 +1493,7 @@ function renderDossiers(){
   const list=document.getElementById("dossierList");
   const open=new Set([...list.querySelectorAll("details[open]")].map(d=>d.dataset.k));
   list.innerHTML="";
-  const rank={KEEP:0,SUSPECT:1,FAIL:2};
+  const rank={PASS:0,SUSPECT:1,FAIL:2};
   [...SUBS].sort((a,b)=>{
     if(SUBJECT){ if(a===SUBJECT) return -1; if(b===SUBJECT) return 1; }
     const d=rank[V(a).overall]-rank[V(b).overall];
