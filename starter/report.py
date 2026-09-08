@@ -78,6 +78,9 @@ class SectionResult:
     conditions: list[str] = field(default_factory=list)
     """What this section requires if it is not a clean PASS. Sections state
     their own; `Report.conditions` collects them."""
+    body_html: str = ""
+    """Body HTML this section contributed, if it renders itself. Empty means
+    `_generic_fragment` draws it from the findings instead."""
 
 
 @dataclass
@@ -619,25 +622,97 @@ def write_overview(reports: dict[str, "Report"],
     return path
 
 
-def run_all(registry: dict, blotters: dict, market: dict,
-            out_dir: str | Path = "reports", tape=None) -> dict[str, "Report"]:
-    """Every submission through `run()`, plus the scoreboard.
+# Where section modules that render their own standalone page should write
+# it. `run` sets this for the duration of a report; `_builders` takes no
+# arguments so the test suite can replace it wholesale.
+_PAGE_DIR: str | Path = "reports"
 
-    The tape is loaded once here and handed to each submission, rather than
-    letting seven Friction sections each parse it.
+
+def _safe(name: str, build):
+    """Wrap a builder so one exploding section cannot take the report with it.
+
+    The failure is recorded as INFO, which the aggregation rule reads as
+    SUSPECT — never as a pass.
     """
-    if tape is None:
+    def call(entry, blotter, market, tape=None):
         try:
-            import execution as _ex
-            tape = _ex.Tape.load(Path(__file__).resolve().parent.parent / "data")
-        except Exception:                                 # noqa: BLE001
-            tape = None      # friction falls back to loading it itself
-    reports = {k: run(registry[k], blotters[k], market, out_dir, tape)
-               for k in sorted(registry)}
-    if out_dir is not None:
-        write_overview(reports, out_dir)
-        write_combined(reports, registry, out_dir)
-    return reports
+            return build(entry, blotter, market, tape)
+        except Exception as exc:                          # noqa: BLE001
+            return SectionResult(
+                name, "INFO",
+                [Finding(f"{name}_error", type(exc).__name__, "INFO",
+                         f"section did not run: {exc}")])
+    return call
+
+
+def _conds(name: str, module_conditions=None):
+    """A section's conditions: its own first, then its module's, then the
+    generic fallback. Never empty for a section that is not a clean PASS —
+    `run` refuses to hand out a SUSPECT report with nothing attached."""
+    def call(sec: SectionResult) -> list[str]:
+        if sec.conditions:
+            return list(sec.conditions)
+        if module_conditions is not None:
+            try:
+                got = module_conditions(sec)
+                if got:
+                    return list(got)
+            except Exception:                             # noqa: BLE001
+                pass
+        return _fallback_conditions(sec)
+    return call
+
+
+def _builders():
+    """The built sections, as (build, conditions) pairs.
+
+    Imported on call, not at module scope: every section module imports this
+    one, so a top-level import would close the cycle. Each builder takes
+    (entry, blotter, market, tape) so `run` can call them uniformly, and
+    returns a SectionResult carrying its own `body_html` where it renders
+    itself. Sections not listed here stay '·' in the grid rather than
+    silently scoring PASS.
+    """
+    import evidence_report as ER
+    import leakage_report as LR
+    import lineage as lineage_mod
+    import section_adapters as SA
+    import sections as friction_mod
+
+    def lineage_build(entry, blotter, market, tape=None):
+        return LR.section(str(entry.get("submission", "?")), entry, blotter,
+                          market["forecasts"], market["products"], _PAGE_DIR)
+
+    def evidence_build(entry, blotter, market, tape=None):
+        res, body = ER.contribute(entry, blotter, market, _PAGE_DIR)
+        res.body_html = body
+        return res
+
+    def adapter_build(fn):
+        def build(entry, blotter, market, tape=None):
+            res, body = fn(entry, blotter, market, _PAGE_DIR)
+            res.body_html = body
+            return res
+        return build
+
+    def friction_build(entry, blotter, market, tape=None):
+        # Measured against the executed tape, not declared by hand.
+        res = friction_mod.friction(entry, blotter, market, tape)
+        res.body_html = findings_table(res)
+        return res
+
+    return [
+        (_safe("luck", adapter_build(SA.luck_contribute)),
+         _conds("luck")),
+        (_safe("lineage", lineage_build),
+         _conds("lineage", getattr(lineage_mod, "conditions_for", None))),
+        (_safe("friction", friction_build),
+         _conds("friction", getattr(friction_mod, "conditions_for", None))),
+        (_safe("shelf_life", adapter_build(SA.shelf_life_contribute)),
+         _conds("shelf_life")),
+        (_safe("evidence", evidence_build),
+         _conds("evidence")),
+    ]
 
 
 def write_report_html(rep: "Report", registry_entry: dict,
@@ -653,118 +728,103 @@ def write_report_html(rep: "Report", registry_entry: dict,
 
 
 def run(registry_entry: dict, blotter: pd.DataFrame, market: dict,
-        out_dir: str | Path | None = "reports", tape=None) -> Report:
+        out_dir: str | Path | None = None, tape=None) -> Report:
     """Take one submission's records, return the verdict with evidence.
 
-    One submission in, one Report out, with each section's HTML page written
-    to `out_dir` (pass None to compute verdicts without writing pages).
+    One function per section, each returning a SectionResult; this assembles
+    them. Pass `out_dir` to also write the section pages and this
+    submission's report; leave it None to compute verdicts only.
 
     `tape` is the executed trade tape, which only Friction reads; it loads
     from data/ on demand when not supplied. Pass it in when running the
     whole cohort so the 1.8M-row file is parsed once, not seven times.
-
-    Sections are imported inside the function on purpose: every section
-    module imports Finding/SectionResult from this one, so a module-level
-    import here would be circular.
-
-    Only the sections that exist are assembled. `grid()` renders the rest as
-    unfilled, which is the honest picture — a Report is not complete until
-    all six are in it.
     """
-    import leakage_report as LR
-    import evidence_report as ER
+    global _PAGE_DIR
 
     sub = str(registry_entry.get("submission", "?"))
     sections: list[SectionResult] = []
-    fragments: dict[str, str] = {}
+    conditions: list[str] = []
 
-    # LR.section always writes its own standalone page, so when pages are not
-    # wanted it is pointed at a scratch directory that is thrown away.
+    # Sections that write their own page need somewhere to put it even when
+    # pages are not wanted; a scratch directory is thrown away afterwards.
     with tempfile.TemporaryDirectory() as tmp:
-        page_dir = out_dir if out_dir is not None else tmp
-
-        # LINEAGE — the revision test, with the participation fallback for
-        # books that have no buy-versus-sell to explain. Its INFO is kept
-        # rather than collapsed; the aggregation rule above handles it. No
-        # `contribute` yet, so it renders through the generic findings table
-        # and links out to the standalone page it already writes.
-        sections.append(LR.section(sub, registry_entry, blotter,
-                                   market["forecasts"], market["products"],
-                                   page_dir))
-
-        # EVIDENCE — what sample stands behind the verdicts above.
-        ev, ev_html = ER.contribute(registry_entry, blotter, market, page_dir)
-        sections.append(ev)
-        fragments["evidence"] = ev_html
-
-        # LUCK and SHELF-LIFE were written as standalone tools; the adapters
-        # in section_adapters.py give them the contribute() shape without
-        # changing their code. Each renders its own page, embedded as an
-        # isolated frame so its stylesheet, Plotly version and controls
-        # cannot collide with the rest of the report.
-        import section_adapters as SA
-        for name, fn in (("luck", SA.luck_contribute),
-                         ("shelf_life", SA.shelf_life_contribute)):
-            try:
-                res, body = fn(registry_entry, blotter, market, page_dir)
-                sections.append(res)
-                fragments[name] = body
-            except Exception as exc:                      # noqa: BLE001
-                # A section that blows up must not take the report with it —
-                # it is recorded as INFO, which aggregates as SUSPECT.
-                sections.append(SectionResult(
-                    name, "INFO",
-                    [Finding(f"{name}_error", type(exc).__name__, "INFO",
-                             f"section did not run: {exc}")]))
-
-        # FRICTION — computed from the executed trade tape. This replaces the
-        # hand-entered placeholder that stood here while the module was
-        # pending: that verdict was declared, this one is measured. The tape
-        # is the only thing any section needs beyond `market`, and friction
-        # loads it itself when not passed one.
+        previous, _PAGE_DIR = _PAGE_DIR, (out_dir if out_dir is not None
+                                          else tmp)
         try:
-            import sections as friction_mod
-            res = friction_mod.friction(registry_entry, blotter, market, tape)
-            if res.verdict == "SUSPECT" and not res.conditions:
-                res.conditions = friction_mod.conditions_for(res)
-            sections.append(res)
-            fragments["friction"] = findings_table(res)
-        except Exception as exc:                          # noqa: BLE001
-            sections.append(SectionResult(
-                "friction", "INFO",
-                [Finding("friction_error", type(exc).__name__, "INFO",
-                         f"section did not run: {exc}")]))
+            for build, conds in _builders():
+                sec = build(registry_entry, blotter, market, tape=tape)
+                sections.append(sec)
+                # A PASS is not conditioned; everything else must say what it
+                # obliges us to do.
+                if sec.verdict == "SUSPECT":
+                    conditions.extend(conds(sec))
+                elif sec.verdict == "INFO":
+                    conditions.extend(_fallback_conditions(sec))
+        finally:
+            _PAGE_DIR = previous
 
-        conditions: list[str] = []
-        for s in sections:
-            conditions.extend(s.conditions or _fallback_conditions(s))
+        rep = Report(submission=sub, sections=sections,
+                     conditions=conditions,
+                     fragments={s.section: s.body_html
+                                for s in sections if s.body_html})
 
-        rep = Report(submission=sub, sections=sections, fragments=fragments)
-        if rep.verdict != "PASS":
-            rep.conditions = conditions
+        # A SUSPECT report with no conditions is, by this file's own rule, an
+        # unfinished report. Say so here rather than letting it reach a
+        # funding decision. A FAIL is not fundable, so it conditions nothing.
+        if rep.verdict == "SUSPECT" and not rep.conditions:
+            raise ValueError(f"{rep.submission}: SUSPECT with no conditions - "
+                             "a section returned SUSPECT but named no "
+                             "condition")
 
         if out_dir is not None:
             write_report_html(rep, registry_entry, blotter, market,
-                              fragments, out_dir)
+                              rep.fragments, out_dir)
     return rep
+
+
+def run_all(registry: dict, market: dict, blotter_dir="../blotters",
+            tape=None, out_dir: str | Path | None = None
+            ) -> dict[str, "Report"]:
+    """The same pipeline over every submission, unchanged.
+
+    The tape is loaded once here and handed to each submission, rather than
+    letting seven Friction sections each parse it.
+    """
+    from repricer import load_blotter
+
+    if tape is None:
+        try:
+            import execution as _ex
+            tape = _ex.Tape.load(Path(__file__).resolve().parent.parent /
+                                 "data")
+        except Exception:                                 # noqa: BLE001
+            tape = None      # friction falls back to loading it itself
+
+    reports = {}
+    for key in sorted(registry):
+        blotter = load_blotter(Path(blotter_dir) / f"{key}-blotter.csv")
+        reports[key] = run(registry[key], blotter, market, out_dir, tape)
+
+    if out_dir is not None:
+        write_overview(reports, out_dir)
+        write_combined(reports, registry, out_dir)
+    return reports
 
 
 if __name__ == "__main__":
     # The whole pipeline over all seven, unchanged per submission, printing
-    # the scoreboard and then each report's sections, findings and conditions.
+    # the scoreboard and then each report's sections and conditions.
     import sys
 
     _root = Path(__file__).resolve().parent.parent
     sys.path.insert(0, str(_root / "registry"))
     from loader import load_registry                          # noqa: E402
-    from repricer import load_blotter, load_market            # noqa: E402
+    from repricer import load_market                          # noqa: E402
 
-    _registry = load_registry(_root / "registry")
-    _market = load_market(_root / "data")
-    _blotters = {k: load_blotter(_root / "blotters" / f"{k}-blotter.csv")
-                 for k in _registry}
-
-    _reports = run_all(_registry, _blotters, _market, _root / "reports")
+    _reports = run_all(load_registry(_root / "registry"),
+                       load_market(_root / "data"),
+                       _root / "blotters",
+                       out_dir=_root / "reports")
     print(grid(_reports).to_string())
     print()
     for _key in rank(_reports):
