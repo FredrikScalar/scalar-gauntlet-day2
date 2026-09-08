@@ -3,7 +3,7 @@
 Three modules, three jobs, and the seam between them is the point:
 
     friction.py / execution.py   measure - no thresholds, no verdicts
-    verdicts.py                  decide  - the only place a line is drawn
+    friction_verdicts.py         decide  - the only place a line is drawn
     sections.py                  report  - that verdict in the contract shape
 
 What comes out is one `report.SectionResult` named `friction`, one
@@ -11,10 +11,12 @@ What comes out is one `report.SectionResult` named `friction`, one
 conditions it must carry, because `report.Report` treats a SUSPECT with an
 empty conditions list as an unfinished report.
 
-The other five sections are not built yet, so `Report.verdict` here is the
-friction verdict and nothing more. Say so when you quote it.
+`report.run` assembles this section alongside the others. What this module
+runs on its own is deliberately friction ALONE - a `Report` carrying one
+section - for looking at friction without paying for luck or shelf-life:
 
-    python sections.py        # the scoreboard, all seven
+    python sections.py        # friction only, all seven
+    python report.py          # every built section
 """
 from __future__ import annotations
 
