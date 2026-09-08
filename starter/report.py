@@ -87,14 +87,18 @@ def grid(reports: dict[str, Report],
 def _builders():
     """Imported on call, not at module scope: every section module imports
     this one, so a top-level import would close the cycle."""
+    import lineage as lineage_mod
     import luck_section as luck_mod
     import sections as friction_mod
     import shelf_life as shelf_mod
 
     # Every builder takes (entry, blotter, market, tape) so `run` can call
-    # them uniformly; luck and shelf-life ignore the tape they are handed.
+    # them uniformly; only friction reads the tape. Lineage wants the
+    # forecast tape, which `load_market` already parses.
     return [
         (luck_mod.luck, luck_mod.conditions_for),
+        (lambda e, b, m, tape=None: lineage_mod.lineage(e, b, m["forecasts"]),
+         lineage_mod.conditions_for),
         (friction_mod.friction, friction_mod.conditions_for),
         (lambda e, b, m, tape=None: shelf_mod.shelf_life(e, b, m),
          lambda sec: shelf_mod._suggested_conditions(sec.verdict,

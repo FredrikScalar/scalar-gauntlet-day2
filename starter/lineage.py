@@ -232,3 +232,15 @@ def lineage(registry_entry: dict, blotter: pd.DataFrame,
     order = ["FAIL", "SUSPECT", "PASS", "INFO"]
     section_verdict = next(v for v in order if v in verdicts)
     return SectionResult("lineage", section_verdict, findings)
+
+
+# What a SUSPECT lineage obliges us to do. A FAIL names none: leakage is not
+# a condition anyone can trade around.
+CONDITION = ("re-run the leakage test on the strategy's own feed handler "
+             "before funding, and have the submitter show which forecast "
+             "vintage each decision read")
+
+
+def conditions_for(section: SectionResult) -> list[str]:
+    """The section contract's companion to `lineage`, matching the others."""
+    return [CONDITION] if section.verdict == "SUSPECT" else []
