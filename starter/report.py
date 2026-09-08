@@ -54,7 +54,9 @@ BADGE = {"PASS": "#0f8a3c", "SUSPECT": "#b8860b", "FAIL": "#c22f2f",
 
 # Sections whose verdicts are declared rather than computed. Marked on the
 # scoreboard so nobody reads a hand-entered cell as measured evidence.
-PROVISIONAL_SECTIONS = {"friction"}
+# Empty since Friction started measuring fills against the executed tape;
+# put a section back in here the moment its verdict is entered by hand again.
+PROVISIONAL_SECTIONS: set[str] = set()
 
 VERDICTS = ("PASS", "SUSPECT", "FAIL")
 
@@ -83,6 +85,9 @@ class Report:
     submission: str
     sections: list[SectionResult] = field(default_factory=list)
     conditions: list[str] = field(default_factory=list)   # mandatory if SUSPECT
+    fragments: dict[str, str] = field(default_factory=dict)
+    """Body HTML each section contributed, kept so the combined document can
+    be assembled without recomputing seven reports' worth of bootstraps."""
 
     @property
     def verdict(self) -> str:
@@ -273,12 +278,18 @@ def _placeholder(name: str) -> str:
             'when its module lands.</p>')
 
 
-def render_html(rep: "Report", registry_entry: dict, blotter: pd.DataFrame,
-                market: dict, fragments: dict[str, str]) -> str:
-    """The whole validation report for one submission, as one page."""
+def report_body(rep: "Report", registry_entry: dict,
+                fragments: dict[str, str], heading_level: int = 1) -> str:
+    """One submission's report as body HTML, with no page wrapper.
+
+    Shared by the standalone page and the combined document so the two can
+    never drift apart. `heading_level` demotes the title to <h2> when the
+    report is one article inside the combined page.
+    """
     name = html.escape(str(registry_entry.get("name", rep.submission)))
     cls = html.escape(str(registry_entry.get("class", "")))
     by = {s.section: s for s in rep.sections}
+    h = f"h{heading_level}"
 
     body = ""
     for i, key in enumerate(SECTIONS, start=1):
@@ -288,7 +299,7 @@ def render_html(rep: "Report", registry_entry: dict, blotter: pd.DataFrame,
         inner = (fragments.get(key) or _generic_fragment(res)) if res \
             else _placeholder(key)
         body += f"""
-  <section class="sec{todo}" id="{key}">
+  <section class="sec{todo}" id="{rep.submission}-{key}">
     <div class="sechead"><span class="n">{i}</span>
       <h2>{html.escape(title)}</h2>
       {_badge(display_verdict(res.verdict)) if res else _badge("·")}</div>
@@ -303,18 +314,24 @@ def render_html(rep: "Report", registry_entry: dict, blotter: pd.DataFrame,
                  f'<ol>{items}</ol></div>')
 
     built = sum(1 for k in SECTIONS if k in by)
+    return f"""
+<{h} id="{rep.submission}">{name}{_badge(rep.verdict)}</{h}>
+<p class="sub">Validation report{f" &middot; {cls}" if cls else ""}
+  &middot; {built} of {len(SECTIONS)} sections built &middot; priced at mid</p>
+{conds}
+{body}"""
+
+
+def render_html(rep: "Report", registry_entry: dict, blotter: pd.DataFrame,
+                market: dict, fragments: dict[str, str]) -> str:
+    """The whole validation report for one submission, as one page."""
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{html.escape(rep.submission)} &mdash; validation report</title>
 <script src="{PLOTLY}"></script>
 <style>{_CSS}</style></head><body><div class="wrap">
-
-<h1>{name}{_badge(rep.verdict)}</h1>
-<p class="sub">Validation report{f" &middot; {cls}" if cls else ""}
-  &middot; {built} of {len(SECTIONS)} sections built &middot; priced at mid</p>
-{conds}
-{body}
+{report_body(rep, registry_entry, fragments, heading_level=1)}
 </div>{_AUTOHEIGHT_LISTENER}</body></html>"""
 
 
@@ -495,6 +512,103 @@ report.</p>
 </div></body></html>"""
 
 
+_COMBINED_CSS = _OVERVIEW_CSS + """
+.toc{columns:2;margin:16px 0 0;padding:0 0 0 18px;font-size:12.5px}
+.toc li{margin:0 0 4px}
+article{margin:52px 0 0;padding:34px 0 0;border-top:2px solid #1a1a1a}
+article h2{font-size:19px;font-weight:660;margin:0 0 3px;letter-spacing:-.01em}
+.back{font-size:11.5px;margin:6px 0 0}
+@media print{
+  article{break-before:page;border-top:0}
+  .back{display:none}
+  .panel iframe{break-inside:avoid}
+}
+"""
+
+
+def render_combined(reports: dict[str, "Report"], registry: dict,
+                    submissions: list[str] | None = None) -> str:
+    """Every submission's full report in one self-contained document.
+
+    The scoreboard first, then each report in rank order, worst last. Built
+    from the same `report_body` the standalone pages use, so the two cannot
+    disagree — and from the fragments each Report already carries, so nothing
+    is recomputed.
+
+    Section panels that live in their own file stay as iframes, so this page
+    still expects its siblings in the same directory. It is one document to
+    read and to print, not one file to email on its own.
+    """
+    order = submissions if submissions is not None else rank(reports)
+    df = grid(reports, order)
+    built = sorted({s.section for r in reports.values() for s in r.sections})
+    tally = {v: sum(1 for r in reports.values() if r.verdict == v)
+             for v in ("PASS", "SUSPECT", "FAIL")}
+
+    head = "".join(
+        f"<th>{html.escape(SECTION_TITLES[c][0] if c in SECTION_TITLES else c)}"
+        f"{'<sup>†</sup>' if c in PROVISIONAL_SECTIONS else ''}</th>"
+        for c in SECTIONS)
+    rows = ""
+    for sub, row in df.iterrows():
+        cells = "".join(f"<td>{_cell(display_verdict(str(row[c])))}</td>"
+                        for c in SECTIONS)
+        rows += (f'<tr><td class="sub"><a href="#{html.escape(str(sub))}">'
+                 f'{html.escape(str(sub))}</a></td>{cells}'
+                 f'<td class="overall">{_cell(str(row["OVERALL"]))}</td></tr>')
+
+    summaries = "".join(
+        f'<li><a href="#{html.escape(sub)}">{html.escape(sub)}</a>'
+        f'{_cell(reports[sub].verdict)}'
+        f'<p>{summarise(reports[sub])}</p></li>' for sub in order)
+
+    articles = "".join(
+        f'<article>{report_body(reports[sub], registry.get(sub, {}), reports[sub].fragments, heading_level=2)}'
+        f'<p class="back"><a href="#top">Back to the scoreboard</a></p></article>'
+        for sub in order)
+
+    provisional = "" if not PROVISIONAL_SECTIONS else (
+        '<p class="legend">† Verdicts in this column are declared, not '
+        'computed, and carry no evidence behind them yet.</p>')
+
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Validation report &mdash; all submissions</title>
+<script src="{PLOTLY}"></script>
+<style>{_COMBINED_CSS}</style></head><body><div class="wrap" id="top">
+
+<h1>Validation report</h1>
+<p class="sub">{len(df)} submissions &middot; {len(built)} of
+  {len(SECTIONS)} sections built &middot; priced at mid &middot;
+  {tally['PASS']} pass, {tally['SUSPECT']} suspect, {tally['FAIL']} fail</p>
+
+<table class="grid">
+  <thead><tr><th>submission</th>{head}<th>overall</th></tr></thead>
+  <tbody>{rows}</tbody>
+</table>
+{provisional}
+<p class="legend">Any section FAIL fails the submission; any SUSPECT (and no
+FAIL) makes it SUSPECT. A section that could not run shows as SUSPECT, never
+as a pass &mdash; the reason is in that submission's report below.
+&middot; marks a section not yet built.</p>
+
+<h2 class="sumhead">Where each one falls down</h2>
+<ol class="summary">{summaries}</ol>
+{articles}
+</div>{_AUTOHEIGHT_LISTENER}</body></html>"""
+
+
+def write_combined(reports: dict[str, "Report"], registry: dict,
+                   out_dir: str | Path = "reports",
+                   filename: str = "validation-report.html") -> Path:
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / filename
+    path.write_text(render_combined(reports, registry), encoding="utf-8")
+    return path
+
+
 def write_overview(reports: dict[str, "Report"],
                    out_dir: str | Path = "reports",
                    filename: str = "overview.html") -> Path:
@@ -522,6 +636,7 @@ def run_all(registry: dict, blotters: dict, market: dict,
                for k in sorted(registry)}
     if out_dir is not None:
         write_overview(reports, out_dir)
+        write_combined(reports, registry, out_dir)
     return reports
 
 
@@ -624,7 +739,7 @@ def run(registry_entry: dict, blotter: pd.DataFrame, market: dict,
         for s in sections:
             conditions.extend(s.conditions or _fallback_conditions(s))
 
-        rep = Report(submission=sub, sections=sections)
+        rep = Report(submission=sub, sections=sections, fragments=fragments)
         if rep.verdict != "PASS":
             rep.conditions = conditions
 
