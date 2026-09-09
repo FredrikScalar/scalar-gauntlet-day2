@@ -90,6 +90,9 @@ def market_regime(market: dict) -> pd.DataFrame:
                    so depth is uninformative)
         price    — mean mid, used only to build a daily market return for skew
         ret      — day-over-day pct change of that price level
+        bias     — intraday mid − day-ahead auction price (EUR/MWh): the market's
+                   premium over the day-ahead (our stand-in for Tom's imbalance
+                   bias, which needs an imbalance price the gauntlet data lacks)
     """
     bk = market["book"][["ts", "product_id", "mid"]].sort_values(["product_id", "ts"])
     same = bk["product_id"].eq(bk["product_id"].shift())
@@ -97,11 +100,13 @@ def market_regime(market: dict) -> pd.DataFrame:
     g = bk.groupby("product_id")["mid"]
     per_prod = pd.DataFrame({"vol": g.std(), "turnover": churn, "price": g.mean()})
 
+    da = market["da_auction"].set_index("product_id")["da_price_eur_mwh"]
+    per_prod["bias"] = per_prod["price"] - da            # intraday mid − day-ahead (EUR/MWh)
     prods = market["products"][["product_id", "delivery_start"]].set_index("product_id")
     per_prod = per_prod.join(prods)
     per_prod["day"] = per_prod["delivery_start"].dt.normalize()
 
-    daily = per_prod.groupby("day")[["vol", "turnover", "price"]].mean().sort_index()
+    daily = per_prod.groupby("day")[["vol", "turnover", "price", "bias"]].mean().sort_index()
     daily["ret"] = daily["price"].pct_change()
     return daily
 
@@ -228,7 +233,7 @@ def _payload(submission: str, blotter: pd.DataFrame, market: dict,
     hourly_recs = [[ts.strftime("%Y-%m-%d"), int(ts.hour), int(ts.dayofweek),
                     round(float(v), 4)] for ts, v in hourly.items()]
     regime_by_day = {d.strftime("%Y-%m-%d"):
-                     [_f(r.vol), _f(r.turnover), _f(r.ret)]
+                     [_f(r.vol), _f(r.turnover), _f(r.ret), _f(r.bias)]
                      for d, r in regime.iterrows()}
     return {
         "submission": submission,
@@ -253,7 +258,7 @@ def _plotly_tag() -> str:
 
 
 ALL_SECTIONS = ["head", "readout", "matrix", "concentration",
-                "regime", "rolling", "skew", "verdict"]
+                "regime", "rolling", "verdict"]
 
 
 def render_html(submission: str, blotter: pd.DataFrame, market: dict,
@@ -352,50 +357,38 @@ _TEMPLATE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
   <div class="ctl"><label>Concentration curve — timeframe</label><select id="s1cf"></select></div>
 </div>
 <div id="p1table"></div>
-<p class="note" style="max-width:560px">Gini (0–1) of P&amp;L across each timeframe's buckets
-(0 = money spread evenly, 1 = concentrated in a few buckets), with the ×n/(n-1) finite-sample correction so
-timeframes with different bucket counts (2 years vs 251 days) are comparable. Respects the drop-best-N slider.</p>
+<p class="note" style="max-width:560px">Gini (0–1) of P&amp;L across each timeframe's buckets, <b>time-weighted</b>
+(each bucket by the trading time it covers, so a partial 2025 is judged against its own span), with the ×n/(n-1)
+finite-sample correction so different bucket counts are comparable. Respects the drop-best-N slider.</p>
 <div id="p1lorenz" class="plot"></div>
-<p class="note" style="max-width:640px">Buckets of the chosen timeframe are ordered smallest→largest P&amp;L; the curve plots cumulative
-share of P&amp;L against cumulative share of buckets (both 0–1). The diagonal is a perfectly even edge; the more the
-curve bows below it, the more the money comes from a few buckets. <b>Gini</b> (0–1) summarises that concentration.</p>
 <!--/S-->
 <!--S:regime-->
 <h3>2 · P&amp;L vs market regime</h3>
 <div class="plotctl">
-  <div class="ctl"><label>Regime bins — <span id="s2binsV" class="val"></span></label>
-    <input id="s2bins" type="range" min="3" max="10" step="1"></div>
   <div class="ctl"><label>Drop best N days — <span id="s2dropV" class="val"></span></label>
     <input id="s2drop" type="range" min="0" max="20" step="1"></div>
   <div class="ctl"><label>Rolling smoothing — <span id="s2rollV" class="val"></span> days</label>
     <input id="s2roll" type="range" min="1" max="60" step="1"></div>
 </div>
 <div class="grid2">
-  <div id="p2vol"  class="plot"></div>
-  <div id="p2turn" class="plot"></div>
+  <div id="p2pnlTime" class="plot"></div>
+  <div id="p2bias"    class="plot"></div>
+  <div id="p2volTime" class="plot"></div>
+  <div id="p2skill"   class="plot"></div>
 </div>
-<div id="p2volTime" class="plot"></div>
-<div id="p2pnlTime" class="plot"></div>
+<p class="note" style="max-width:700px"><b>Skill ρ</b> = corr(daily P&amp;L, <b>volatility</b>), taking volatility as the
+<b>spread between the strategy's two legs</b> (Tom's ρ = correlation of positions with the DA−IMB spread). ρ = +1 → P&amp;L
+grows with the spread, i.e. the strategy captures it; ρ = 0 → P&amp;L independent of the spread; ρ &lt; 0 → losing more as the
+spread widens (bleeding).</p>
 <!--/S-->
 <!--S:rolling-->
-<h3>3 · Rolling Sharpe &amp; t-stat</h3>
+<h3>3 · Rolling Sharpe</h3>
 <div class="plotctl">
   <div class="ctl"><label>Rolling window — <span id="s3winV" class="val"></span> days</label>
     <input id="s3win" type="range" min="20" max="120" step="5"></div>
 </div>
 <div id="p3metric" class="metric"></div>
-<div class="grid2">
-  <div id="p3sharpe" class="plot full"></div>
-  <div id="p3tstat"  class="plot full"></div>
-</div>
-<!--/S-->
-<!--S:skew-->
-<h3>4 · Rolling skewness — strategy vs market</h3>
-<div class="plotctl">
-  <div class="ctl"><label>Rolling window — <span id="s4winV" class="val"></span> days</label>
-    <input id="s4win" type="range" min="20" max="120" step="5"></div>
-</div>
-<div id="p4skew" class="plot full"></div>
+<div id="p3sharpe" class="plot full"></div>
 <!--/S-->
 <!--S:verdict-->
 <div id="finalverdict"></div>
@@ -475,23 +468,34 @@ const col=v=>v>=0?BLUE:RED;
 
 // ----- plot 1 · seasonality pivot (dropdowns: X & Y dimension; slider: drop best N) -----
 const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const DIMS=[["year","years"],["season","seasons"],["month","months"],
-            ["week","weeks"],["day","days"],["hour","hours"]];
+// Matrix (X/Y) keeps its original richer set; the Gini part (table + curve) uses calendar-time buckets only
+const MATRIX_DIMS=[["year","year"],["month","month (calendar)"],["monthofyear","month of year"],
+                   ["season","season"],["weekcal","week (calendar)"],["week","week of year"],
+                   ["weekday","weekday"],["hourofday","hour of day"]];
+const CF_DIMS=[["year","years"],["seasoncal","seasons"],["month","months"],
+               ["weekcal","weeks"],["day","days"],["hour","hours"],["min15","15 min"]];
 const SEASON_ORD={winter:1,spring:2,summer:3,autumn:4};
 function isoWeek(s){const d=new Date(s+"T00:00:00Z"),day=(d.getUTCDay()+6)%7;
   d.setUTCDate(d.getUTCDate()-day+3);const f=new Date(Date.UTC(d.getUTCFullYear(),0,4));
   return 1+Math.round(((d-f)/864e5-3+((f.getUTCDay()+6)%7))/7);}
 const cap=s=>s[0].toUpperCase()+s.slice(1);
-function dimVal(name,rec){const date=rec[0],hour=rec[1];       // all buckets are calendar-time periods
+function dimVal(name,rec){const date=rec[0],hour=rec[1],dow=rec[2];
   const yr=+date.slice(0,4), mo=+date.slice(5,7);
   switch(name){
-    case "year":   return {o:yr, lab:date.slice(0,4)};                                  // 2025
-    case "season": {const s=seasonOf(mo), sy=(mo===12)?yr+1:yr;                          // Spring 2025 (winter = Dec+Jan+Feb of the later year)
-                    return {o:sy*4+SEASON_ORD[s], lab:cap(s)+" "+sy};}
-    case "month":  return {o:yr*12+mo, lab:MON[mo-1]+" "+String(yr).slice(2)};           // Jan 25
-    case "week":   {const w=isoWeek(date); return {o:yr*54+w, lab:"W"+w+" "+String(yr).slice(2)};}  // W1 25
-    case "day":    return {o:Date.parse(date), lab:date};                                // 2025-01-01
-    default:       return {o:Date.parse(date)+hour*36e5, lab:date+" "+String(hour).padStart(2,"0")+"h"};  // hours (delivery hour, calendar)
+    case "year":        return {o:yr, lab:date.slice(0,4)};                                  // 2025
+    case "month":       return {o:yr*12+mo, lab:MON[mo-1]+" "+String(yr).slice(2)};          // Jan 25 (calendar)
+    case "monthofyear": return {o:mo, lab:MON[mo-1]};                                        // Jan..Dec (all years)
+    case "season":      {const s=seasonOf(mo); return {o:SEASON_ORD[s], lab:cap(s)};}        // season of year (aggregated)
+    case "seasoncal":   {const s=seasonOf(mo), sy=(mo===12)?yr+1:yr;                          // Spring 2025 (calendar)
+                         return {o:sy*4+SEASON_ORD[s], lab:cap(s)+" "+sy};}
+    case "week":        {const w=isoWeek(date); return {o:w, lab:"W"+w};}                     // ISO week of year
+    case "weekcal":     {const w=isoWeek(date); return {o:yr*54+w, lab:"W"+w+" "+String(yr).slice(2)};}  // W1 25 (calendar)
+    case "day":         return {o:Date.parse(date), lab:date};                                // 2025-01-01
+    case "weekday":     return {o:dow, lab:DOW[dow]};                                         // Mon..Sun
+    case "hourofday":   return {o:hour, lab:"PH"+(hour+1)};                                   // PH1..PH24 (00:00–01:00 = PH1)
+    case "min15":       {const q=rec[4]||0;                                                   // 15-min slot; hourly-delivery data has no sub-hour split (q=0)
+                         return {o:Date.parse(date)+hour*36e5+q*9e5, lab:date+" "+String(hour).padStart(2,"0")+":"+String(q*15).padStart(2,"0")};}
+    default:            return {o:Date.parse(date)+hour*36e5, lab:date+" "+String(hour).padStart(2,"0")+"h"};  // hour (calendar)
   }}
 const TOT="Σ total", INNER_TEXT_MAX=180;
 const kfmt=v=>Math.abs(v)>=1000?(v/1000).toFixed(1)+"k":(v||0).toFixed(0);
@@ -505,15 +509,25 @@ function etaRatio(records, dimName){    // between-timeframe std ÷ total std of
   for(const k in groups){const g=groups[k], mg=g.reduce((s,v)=>s+v,0)/g.length; between+=g.length*(mg-gm)**2;}
   return Math.sqrt(between/total);
 }
-function giniOf(records, dimName){      // Gini (0–1) of P&L concentration across the timeframe's buckets
-  const bmap={}; for(const r of records){const k=dimVal(dimName,r).lab; bmap[k]=(bmap[k]||0)+r[3];}
-  const vals=Object.values(bmap).sort((a,b)=>a-b), n=vals.length, tot=vals.reduce((s,v)=>s+v,0);
-  if(n<2||tot===0) return null;
-  let area=0, cum=0, px=0, py=0;
-  for(let i=0;i<n;i++){cum+=vals[i]; const x=(i+1)/n, y=cum/tot; area+=(x-px)*(y+py)/2; px=x; py=y;}
-  const raw=Math.max(0,Math.min(1,1-2*area));
-  return {raw, scaled:Math.max(0,Math.min(1,raw*n/(n-1))), n};   // scaled = ×n/(n-1) finite-sample correction
+function bucketLorenz(records, dimName){  // time-weighted Lorenz: x = share of time traded (record count), buckets ordered by P&L per unit time
+  const bmap={}, wmap={};
+  for(const r of records){const k=dimVal(dimName,r).lab; bmap[k]=(bmap[k]||0)+r[3]; wmap[k]=(wmap[k]||0)+1;}
+  const keys=Object.keys(bmap), nB=keys.length;
+  if(nB<2) return null;
+  keys.sort((a,b)=>(bmap[a]/wmap[a])-(bmap[b]/wmap[b]));          // ascending P&L density
+  const totW=keys.reduce((s,k)=>s+wmap[k],0), tot=keys.reduce((s,k)=>s+bmap[k],0);
+  if(tot===0||totW===0) return null;
+  const lx=[0], ly=[0]; let cumW=0, cumP=0, lossW=0;
+  for(const k of keys){cumW+=wmap[k]; cumP+=bmap[k]; lx.push(cumW/totW); ly.push(cumP/tot); if(bmap[k]<0)lossW+=wmap[k];}
+  let area=0; for(let i=1;i<lx.length;i++) area+=(lx[i]-lx[i-1])*(ly[i]+ly[i-1])/2;
+  // Gini can exceed 1 when some buckets are negative (losing periods) — do not cap the upper bound
+  const raw=Math.max(0,1-2*area), scaled=Math.max(0,raw*nB/(nB-1));
+  const minY=Math.min(...ly), minI=ly.indexOf(minY);
+  const nLoss=keys.filter(k=>bmap[k]<0).length, nWin=keys.filter(k=>bmap[k]>0).length;
+  return {lx, ly, raw, scaled, n:nB, nWin, nLoss, winCountPct:100*nWin/nB,
+          winPct:100*(1-lossW/totW), lossW, minX:lx[minI], minY};
 }
+function giniOf(records, dimName){ const L=bucketLorenz(records,dimName); return L?{raw:L.raw,scaled:L.scaled,n:L.n}:null; }
 
 function drawSeasonality(){
   if(!$("p1matrix"))return;
@@ -569,7 +583,8 @@ function drawSeasonality(){
      hovertemplate:"%{y} · %{x}<br>total %{z:.0f} EUR<extra></extra>"},
     {type:"scatter",mode:"markers",x:[SP],y:[SP],marker:{opacity:0,size:1},hoverinfo:"skip",showlegend:false}],
     {...baseLayout(`P&L by ${yName} (rows) × ${xName} (cols), EUR`),
-     height:480, margin:{l:74,r:15,t:36,b:52},
+     height:490, margin:{l:74,r:15,t:64,b:42},
+     title:{text:`P&L by ${yName} (rows) × ${xName} (cols), EUR`,font:{size:13},y:0.985,yanchor:"top"},
      xaxis:{type:"category",categoryorder:"array",categoryarray:xA,range:[-0.5,xA.length-0.5],
             side:"top",tickangle:xl.length>14?-45:0},
      yaxis:{type:"category",categoryorder:"array",categoryarray:[...yA].reverse(),range:[-0.5,yA.length-0.5]},
@@ -583,74 +598,80 @@ function drawConcentration(){
   const dropN = $("s1cfdrop") ? +$("s1cfdrop").value : ($("s1drop")?+$("s1drop").value:0);
   if($("s1cfdrop")) $("s1cfdropV").textContent=dropN;
   const {hourly}=build(dropN);
-  const TFS=[["year","yearly"],["season","seasonal"],["month","monthly"],
-             ["week","weekly"],["day","daily"],["hour","hourly"]];
-  const trows=TFS.map(([k,lab])=>{const g=giniOf(hourly,k), bar=g==null?0:Math.round(g.scaled*100);
+  const TFS=[["year","yearly"],["seasoncal","seasonal"],["month","monthly"],
+             ["weekcal","weekly"],["day","daily"],["hour","hourly"],["min15","15-min"]];
+  const trows=TFS.map(([k,lab])=>{const g=giniOf(hourly,k), bar=g==null?0:Math.min(200,Math.round(g.scaled*100));
     return `<tr><td>${lab}</td><td>${g==null?"–":g.raw.toFixed(2)}</td>`+
            `<td><span class="bar" style="width:${bar}px"></span>${g==null?"–":g.scaled.toFixed(2)}</td></tr>`;}).join("");
   $("p1table").innerHTML=`<table><tr><th>timeframe</th><th>Gini</th><th>Gini scaled</th></tr>${trows}</table>`;
   if(!$("p1lorenz"))return;
-  const cf=$("s1cf").value;
-  const bmap={}; for(const r of hourly){const k=dimVal(cf,r).lab; bmap[k]=(bmap[k]||0)+r[3];}
-  const vals=Object.values(bmap).sort((a,b)=>a-b), nB=vals.length, tot=vals.reduce((s,v)=>s+v,0);
-  const lx=[0], ly=[0]; let cum=0;
-  for(let i=0;i<nB;i++){cum+=vals[i]; lx.push((i+1)/nB); ly.push(tot!==0?cum/tot:0);}
-  let area=0; for(let i=1;i<lx.length;i++) area+=(lx[i]-lx[i-1])*(ly[i]+ly[i-1])/2;
-  const giniRaw=Math.max(0,Math.min(1,1-2*area)), gini=Math.max(0,Math.min(1,giniRaw*nB/(nB-1)));
+  const cf=$("s1cf").value, cflab=(CF_DIMS.find(d=>d[0]===cf)||[cf,cf])[1];
+  const L=bucketLorenz(hourly, cf);
+  if(!L){Plotly.react("p1lorenz",[],{...baseLayout("not enough buckets")},CFG); return;}
+  const winTxt=L.nLoss===0?`all ${cflab} profitable — 100% win rate`
+                          :`win rate ${L.winCountPct.toFixed(0)}% of ${cflab} (${L.nWin}/${L.n})`;
   Plotly.react("p1lorenz",[
     {type:"scatter",mode:"lines",x:[0,1],y:[0,1],line:{color:"#bbb",dash:"dash",width:1},hoverinfo:"skip"},
-    {type:"scatter",mode:"lines+markers",x:lx,y:ly,line:{color:BLUE,width:2},marker:{size:4},
-     hovertemplate:"%{x:.0%} of buckets → %{y:.0%} of P&L<extra></extra>"}],
-    {...baseLayout(`P&L concentration across ${cf} (${nB} buckets) — Gini ${giniRaw.toFixed(2)} · scaled ${gini.toFixed(2)}`),
-     xaxis:{title:"cumulative share of buckets",range:[0,1]},
-     yaxis:{title:"cumulative share of P&L",range:[Math.min(0,...ly),1.02]}},CFG);
+    {type:"scatter",mode:"lines+markers",x:L.lx,y:L.ly,line:{color:BLUE,width:2},marker:{size:4},
+     hovertemplate:"%{x:.0%} of time → %{y:.0%} of P&L<extra></extra>"},
+    {type:"scatter",mode:"markers",x:[L.minX],y:[L.minY],marker:{color:RED,size:9},
+     hovertemplate:`minimum ${(L.minY*100).toFixed(1)}% of P&L<extra></extra>`}],
+    {...baseLayout(`P&L concentration across ${cflab} (${L.n} buckets, time-weighted) — Gini ${L.raw.toFixed(2)} · scaled ${L.scaled.toFixed(2)}`),
+     xaxis:{title:"cumulative share of time traded",range:[0,1]},
+     yaxis:{title:"cumulative share of P&L",range:[Math.min(0,L.minY)-0.03,1.03]},
+     annotations:[{x:L.minX,y:L.minY,text:winTxt,showarrow:true,arrowhead:0,ax:38,ay:L.lossW?-24:-14,
+                   font:{size:10,color:L.lossW===0?"#2e8b57":"#d1495b"}}]},CFG);
 }
 
 // ----- plot 2 · regime scatter + binned mean (sliders: bins, drop best N) -----
 function drawRegime(){
-  if(!$("p2vol"))return;
-  const dropN=+$("s2drop").value, bins=+$("s2bins").value, roll=+$("s2roll").value;
-  $("s2dropV").textContent=dropN; $("s2binsV").textContent=bins; $("s2rollV").textContent=roll;
+  if(!$("p2volTime"))return;
+  const dropN=+$("s2drop").value, roll=+$("s2roll").value;
+  $("s2dropV").textContent=dropN; $("s2rollV").textContent=roll;
   const {daily}=build(dropN);
-  function panel(divId,idx,label){
-    const xs=[],ys=[];
-    for(let i=0;i<days.length;i++){
-      if(daily[i]===0)continue;
-      const r=P.regime[days[i]]; if(!r||r[idx]===null)continue;
-      xs.push(r[idx]); ys.push(daily[i]);
-    }
-    const c=xs.length>5?corr(xs,ys):NaN;
-    const pairs=xs.map((x,i)=>[x,ys[i]]).sort((a,b)=>a[0]-b[0]);
-    const per=Math.max(1,Math.floor(pairs.length/bins)), bx=[],by=[];
-    for(let b=0;b<bins;b++){const seg=pairs.slice(b*per,b===bins-1?pairs.length:(b+1)*per);
-      if(seg.length){bx.push(mean(seg.map(p=>p[0])));by.push(mean(seg.map(p=>p[1])));}}
-    Plotly.react(divId,[
-      {type:"scatter",mode:"markers",x:xs,y:ys,marker:{color:BLUE,size:6,opacity:.45}},
-      {type:"scatter",mode:"lines+markers",x:bx,y:by,line:{color:RED,width:2}}],
-      {...baseLayout(`${label} — corr ${isFinite(c)?(c>=0?"+":"")+c.toFixed(2):"–"}`),
-       xaxis:{title:label},yaxis:{title:"daily P&L (EUR)"}},CFG);
-  }
-  panel("p2vol",0,"market volatility (std of mid)");
-  // turnover hidden for now — keep the panel, no data
-  Plotly.react("p2turn",[],
-    {...baseLayout("market turnover (quote churn Σ|Δmid|)"),
-     xaxis:{title:"market turnover"},yaxis:{title:"daily P&L (EUR)"},
-     annotations:[{xref:"paper",yref:"paper",x:.5,y:.5,text:"hidden for now",
-                   showarrow:false,font:{color:"#aaa",size:13}}]},CFG);
 
-  // ---- market volatility & P&L over time (rolling-smoothed) ----
+  // ---- market volatility over time (rolling-smoothed) ----
   const rmean=a=>{const o=Array(a.length).fill(null), h=(roll-1)>>1;
     for(let i=0;i<a.length;i++){const lo=i-h, hi=lo+roll;
       if(lo<0||hi>a.length) continue;                       // partial window at head/tail -> drop
       let s=0,c=0; for(let j=lo;j<hi;j++) if(a[j]!=null){s+=a[j];c++;}
       o[i]=c?s/c:null;}
     return o;};
-  const tag=roll>1?`${roll}-day mean`:"daily", volS=days.map(d=>{const r=P.regime[d];return r?r[0]:null;});
-  Plotly.react("p2volTime",[{type:"scatter",mode:"lines",x:days,y:rmean(volS),line:{color:"#8a5cd1",width:1.5}}],
-    {...baseLayout(`market volatility over time (${tag})`),yaxis:{title:"vol (std of mid)"}},CFG);
+  const tag=roll>1?`${roll}-day mean`:"daily";
+  const volS=days.map(d=>{const r=P.regime[d];return r?r[0]:null;});
+  const biasS=days.map(d=>{const r=P.regime[d];return r?r[3]:null;});
+  const zero0=[{type:"line",xref:"paper",x0:0,x1:1,y0:0,y1:0,line:{color:"#000",width:.6}}];
   Plotly.react("p2pnlTime",[{type:"scatter",mode:"lines",x:days,y:rmean(daily),line:{color:BLUE,width:1.5}}],
-    {...baseLayout(`daily P&L over time (${tag})`),yaxis:{title:"P&L (EUR/day)"},
-     shapes:[{type:"line",xref:"paper",x0:0,x1:1,y0:0,y1:0,line:{color:"#000",width:.6}}]},CFG);
+    {...baseLayout(`daily P&L over time (${tag})`),yaxis:{title:"P&L (EUR/day)"},shapes:zero0},CFG);
+  Plotly.react("p2bias",[{type:"scatter",mode:"lines",x:days,y:rmean(biasS),line:{color:"#c86e2a",width:1.5}}],
+    {...baseLayout(`market bias (${tag}) — intraday mid − day-ahead`),yaxis:{title:"bias (EUR/MWh)"},shapes:zero0},CFG);
+  Plotly.react("p2volTime",[{type:"scatter",mode:"lines",x:days,y:rmean(volS),line:{color:"#8a5cd1",width:1.5}}],
+    {...baseLayout(`market volatility (${tag})`),yaxis:{title:"vol (std of mid)"}},CFG);
+
+  // ---- skill ρ over time: corr(daily P&L, volatility) — volatility = spread between the strategy's two legs ----
+  const rollCorr=(A,Bv,win)=>{const o=Array(A.length).fill(null), h=(win-1)>>1;
+    for(let i=0;i<A.length;i++){const lo=i-h, hi=lo+win; if(lo<0||hi>A.length)continue;
+      const xs=[],ys=[]; for(let j=lo;j<hi;j++) if(A[j]!=null&&Bv[j]!=null){xs.push(A[j]);ys.push(Bv[j]);}
+      const c=xs.length>2?corr(xs,ys):NaN; o[i]=isFinite(c)?c:null;}
+    return o;};
+  // full-sample mean skill + bootstrapped certainty band (95% CI of a roll-day ρ estimate)
+  const sx=[], sy=[];
+  for(let i=0;i<days.length;i++) if(daily[i]!=null&&volS[i]!=null){sx.push(daily[i]);sy.push(volS[i]);}
+  const rhoFull=sx.length>2?corr(sx,sy):NaN, nP=sx.length, Bc=500, boot=[];
+  if(nP>2) for(let b=0;b<Bc;b++){const rx=[],ry=[];
+    for(let k=0;k<roll;k++){const i=(Math.random()*nP)|0; rx.push(sx[i]); ry.push(sy[i]);}
+    const c=corr(rx,ry); boot.push(isFinite(c)?c:0);}
+  boot.sort((a,b)=>a-b);
+  const clo=boot.length?boot[(0.025*Bc)|0]:null, chi=boot.length?boot[(0.975*Bc)|0]:null;
+  const skillShapes=[{type:"line",xref:"paper",x0:0,x1:1,y0:0,y1:0,line:{color:"#000",width:.6}}];
+  if(clo!=null){skillShapes.unshift(
+    {type:"rect",xref:"paper",x0:0,x1:1,yref:"y",y0:clo,y1:chi,fillcolor:"rgba(46,139,87,0.14)",line:{width:0},layer:"below"},
+    {type:"line",xref:"paper",x0:0,x1:1,y0:rhoFull,y1:rhoFull,line:{color:"#2e8b57",dash:"dash",width:1}});}
+  Plotly.react("p2skill",[{type:"scatter",mode:"lines",x:days,y:rollCorr(daily,volS,roll),line:{color:"#2e8b57",width:1.6}}],
+    {...baseLayout(`skill ρ over time — corr(daily P&L, volatility) · mean ${isFinite(rhoFull)?rhoFull.toFixed(2):"–"} · ${roll}-day 95% CI`),
+     yaxis:{title:"skill ρ",range:[-1,1]},shapes:skillShapes,
+     annotations:clo==null?[]:[{xref:"paper",x:0.01,y:rhoFull,text:`mean skill ${rhoFull.toFixed(2)} · 95% CI [${clo.toFixed(2)}, ${chi.toFixed(2)}]`,
+                   showarrow:false,font:{size:10,color:"#2e8b57"},yshift:8,xanchor:"left"}]},CFG);
 }
 
 // ----- plot 3 · rolling Sharpe & t-stat (slider: window) -----
@@ -670,7 +691,6 @@ function drawRolling(){
   const win=+$("s3win").value; $("s3winV").textContent=win;
   const daily=BASE.daily;
   const srArr=rolling(daily,win,sharpe);
-  const tsArr=rolling(daily,win,a=>{const s=std(a);return s>0?mean(a)/(s/Math.sqrt(win)):null;});
   const full=sharpe(daily);
   const fullCI=bootSharpeCI(daily, win);   // 95% CI of a win-day Sharpe estimate — band width tracks the window, centred on the dashed line
   // hard metric: share of rolling-Sharpe points outside the CI band (>5% -> FAIL)
@@ -692,29 +712,8 @@ function drawRolling(){
              {type:"line",xref:"paper",x0:0,x1:1,y0:0,y1:0,line:{color:"#000",width:.6}}],
      annotations:[{xref:"paper",x:0.01,y:full,text:`full-sample ${full.toFixed(2)} · ${win}-day 95% CI [${fullCI.lo.toFixed(1)}, ${fullCI.hi.toFixed(1)}]`,
                    showarrow:false,font:{size:10,color:"#888"},yshift:8,xanchor:"left"}]},CFG);
-  const tc=P.defaults.tcrit;
-  Plotly.react("p3tstat",[{type:"scatter",mode:"lines",x:days,y:tsArr,line:{color:BLUE,width:1.6}}],
-    {...baseLayout(`rolling ${win}-day t-stat (H₀: mean = 0)`),yaxis:{title:"t-stat"},
-     shapes:[...[tc,-tc].map(y=>({type:"line",xref:"paper",x0:0,x1:1,y0:y,y1:y,
-              line:{color:RED,dash:"dash",width:1}})),
-              {type:"line",xref:"paper",x0:0,x1:1,y0:0,y1:0,line:{color:"#000",width:.6}}]},CFG);
 }
 
-// ----- plot 4 · rolling skewness strat vs market (slider: rolling window) -----
-function drawSkew(){
-  if(!$("p4skew"))return;
-  const win=+$("s4win").value; $("s4winV").textContent=win;
-  const daily=BASE.daily;
-  const retByDay=days.map(d=>{const r=P.regime[d];return r?r[2]:null;});
-  const stratSkew=rolling(daily,win,skew);
-  const mktSkew=rolling(retByDay.map(v=>v===null?0:v),win,skew);
-  Plotly.react("p4skew",[
-    {type:"scatter",mode:"lines",x:days,y:stratSkew,name:"strategy P&L",line:{color:BLUE,width:1.6}},
-    {type:"scatter",mode:"lines",x:days,y:mktSkew,name:"market return",line:{color:AMBER,width:1.6}}],
-    {...baseLayout(`rolling ${win}-day skewness`),showlegend:true,
-     legend:{orientation:"h",y:1.12,font:{size:10}},yaxis:{title:"skew"},
-     shapes:[{type:"line",xref:"paper",x0:0,x1:1,y0:0,y1:0,line:{color:"#000",width:.6}}]},CFG);
-}
 
 // ----- readout (base strategy, computed once) -----
 (function drawReadout(){
@@ -740,18 +739,18 @@ on("s1y","change",drawSeasonality);
 on("s1cfdrop","input",drawConcentration);
 on("s1cf","change",drawConcentration);
 on("s2drop","input",drawRegime);
-on("s2bins","input",drawRegime);
 on("s2roll","input",drawRegime);
 on("s3win","input",drawRolling);
-on("s4win","input",drawSkew);
 (function init(){
-  const opts=DIMS.map(([v,l])=>`<option value="${v}">${l}</option>`).join("");
-  for(const id of ["s1x","s1y","s1cf"]){const e=$(id); if(e)e.innerHTML=opts;}
-  setv("s1x","month"); setv("s1y","year"); setv("s1cf","month");
+  const mopts=MATRIX_DIMS.map(([v,l])=>`<option value="${v}">${l}</option>`).join("");
+  const copts=CF_DIMS.map(([v,l])=>`<option value="${v}">${l}</option>`).join("");
+  for(const id of ["s1x","s1y"]){const e=$(id); if(e)e.innerHTML=mopts;}
+  {const e=$("s1cf"); if(e)e.innerHTML=copts;}
+  setv("s1x","weekday"); setv("s1y","monthofyear"); setv("s1cf","month");
   setv("s1drop",P.defaults.dropN); setv("s1cfdrop",P.defaults.dropN);
-  setv("s2drop",P.defaults.dropN); setv("s2bins",P.defaults.bins); setv("s2roll",10);
-  setv("s3win",P.defaults.win); setv("s4win",P.defaults.win);
-  drawSeasonality(); drawConcentration(); drawRegime(); drawRolling(); drawSkew();
+  setv("s2drop",P.defaults.dropN); setv("s2roll",10);
+  setv("s3win",P.defaults.win);
+  drawSeasonality(); drawConcentration(); drawRegime(); drawRolling();
 })();
 </script>
 </body></html>"""
